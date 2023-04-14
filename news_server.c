@@ -168,7 +168,7 @@ void error(char *msg)
 
 void tcp_session_manager(char client_ip[], int client_fd)
 {
-	printf("\n\nNova conexão TCP com o cliente %d estabelecida!", client_fd);
+	printf("\n\nNova conexão TCP com o IP %s estabelecida!", client_ip);
 	fflush(stdout);
 
 	write(client_fd, "Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar.",90); //envia mensagem de boas vindas
@@ -178,7 +178,7 @@ void tcp_session_manager(char client_ip[], int client_fd)
 	if (client_perms != -1) // se o cliente não pediu para sair e não ocorreram erros durante o login
 		while (!tcp_receive_message(client_perms, client_ip, client_fd)) {} // recebe continuamente mensagens do cliente e verifica se são um pedido de saída ou não
 
-	printf("\n\nConexão TCP com o cliente %d terminada!", client_fd);
+	printf("\n\nUma conexão TCP com o IP %s foi terminada!", client_ip);
 	fflush(stdout);
 
 	close(client_fd);
@@ -225,7 +225,6 @@ int tcp_login(char client_ip[], int client_fd)
 			{
 				if(!strcmp(token,buffer))
 				{
-					printf("\n\nCliente %d introduziu um username (%s) válido durante o login.", client_fd, token);
 					fflush(stdout);
 					write(client_fd, "Username encontrado!", 20);
 					token = strtok(NULL, ",");
@@ -245,9 +244,6 @@ int tcp_login(char client_ip[], int client_fd)
 
 						if(!strcmp(token,buffer))
 						{
-							printf("\n\nCliente %d acertou a password durante o login.", client_fd);
-							fflush(stdout);
-
 							token = strtok(NULL, ",");
 							if(!strcasecmp(token,"administrador"))
 								client_perms = 2;
@@ -258,9 +254,7 @@ int tcp_login(char client_ip[], int client_fd)
 							else
 							{
 								write(client_fd, "Password correta mas não foi possível processar as permissões desta conta!"
-												"\nContacte um administrador para resolver este problema ou de momento tente novamente com outra conta.", 180);
-								printf("\n\nOcorreu um erro na leitura das permissões do cliente %d para a conta introduzida!", client_fd);
-								fflush(stdout);
+								"\nContacte um administrador para resolver este problema ou de momento tente novamente com outra conta.", 180);
 								fclose(file);
 								if (sem_post(users_file_sem) == -1)
 									error("no post do semáforo para o ficheiro de utilizadores!");
@@ -270,7 +264,7 @@ int tcp_login(char client_ip[], int client_fd)
 
 							write(client_fd, "Login efetuado com sucesso!", 28);
 
-							printf("\n\nCliente %d logou-se com sucesso, a conta usada está no nível %d de permissões!", client_fd, client_perms);
+							printf("\n\nLogin TCP pelo IP %s efetuado com sucesso.\n Entrou numa conta com nível %d de permissões.", client_ip, client_perms);
 							fflush(stdout);
 
 							fclose(file);
@@ -280,11 +274,7 @@ int tcp_login(char client_ip[], int client_fd)
 							return client_perms;
 						}
 						else
-						{
 							write(client_fd, "Password incorreta, tente novamente!", 36);
-							printf("\n\nCliente %d errou a password durante o login.", client_fd);
-							fflush(stdout);
-						}
 					}
 				}
 				else
@@ -292,8 +282,6 @@ int tcp_login(char client_ip[], int client_fd)
 			}
 		}
 		write(client_fd, "Este username não se encontra registado, tente novamente!", 59);
-		printf("\n\nCliente %d introduziu um username não registado durante o login.", client_fd);
-		fflush(stdout);
 		rewind(file);
 	}	
 }
@@ -443,7 +431,7 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, st
 						token = strtok(NULL, ",");
 						if(!strcasecmp(token, "administrador"))
 						{
-							printf("\n\nIP %s logou-se com sucesso!", client_ip);
+							printf("\n\nLogin UDP pelo IP %s efetuado com sucesso.\n Entrou numa conta com username %s de administrador.", client_ip, username);
 							fflush(stdout);
 							sprintf(answer, "\nLogin de administrador efetuado com sucesso!\n\n");
 							for (int i = 0; i < MAX_ADMINS; i++)
@@ -493,7 +481,8 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, st
 	{
 		printf("\n\nIP %s tentou executar um comando na consola de administrador antes de fazer login.", client_ip);
 		fflush(stdout);
-		sprintf(answer, "\nPor favor efetue o login como administrador para utilizar qualquer comando aqui!\n\n");
+		sprintf(answer, "\nPor favor efetue primemiro o login como administrador para utilizar qualquer comando aqui!"
+						"\nSíntaxe: LOGIN <username> <password>\n\n");
 	}
 
 	answer[strlen(answer)] = '\0';
