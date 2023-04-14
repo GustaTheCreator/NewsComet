@@ -1,0 +1,22 @@
+Apr 11 15:25:43.629 HYPERVISOR: Release 0.2.21-amd64/Linux (tag 2019071212)
+Apr 11 15:25:43.629 HYPERVISOR: Started on IP = localhost, TCP port = 38385.
+Apr 11 15:25:43.638 HYPERVISOR: exec_cmd: hypervisor version 
+Apr 11 15:25:43.639 HYPERVISOR: exec_cmd: hypervisor working_dir /home/user/Desktop/Shared/RC/Projeto/GNS3/project-files/dynamips 
+Apr 11 15:25:43.639 GENERAL: working_dir=/home/user/Desktop/Shared/RC/Projeto/GNS3/project-files/dynamips
+Apr 11 15:25:43.640 HYPERVISOR: exec_cmd: hypervisor working_dir /home/user/Desktop/Shared/RC/Projeto/GNS3/project-files/dynamips/a7e04107-414f-4d31-bbfe-8b978ca37f1a 
+Apr 11 15:25:43.641 GENERAL: working_dir=/home/user/Desktop/Shared/RC/Projeto/GNS3/project-files/dynamips/a7e04107-414f-4d31-bbfe-8b978ca37f1a
+Apr 11 15:25:43.641 HYPERVISOR: exec_cmd: vm create R2 2 c2691 
+Apr 11 15:25:43.644 VM: VM R2 created.
+Apr 11 15:25:43.644 HYPERVISOR: exec_cmd: vm set_con_tcp_port R2 5008 
+Apr 11 15:25:43.645 HYPERVISOR: exec_cmd: c2691 get_mac_addr R2 
+Apr 11 15:25:43.646 HYPERVISOR: exec_cmd: vm set_disk0 R2 0 
+Apr 11 15:25:43.647 HYPERVISOR: exec_cmd: vm get_status R2 
+Apr 11 15:25:43.648 HYPERVISOR: exec_cmd: vm set_idle_pc R2 0x60bcf9f8 
+Apr 11 15:25:43.649 HYPERVISOR: exec_cmd: vm set_ios R2 /home/user/GNS3/images/IOS/c2691-adventerprisek9-mz.124-15.T14.image 
+Apr 11 15:25:43.650 HYPERVISOR: exec_cmd: c2691 set_mac_addr R2 c002.272c.0000 
+Apr 11 15:25:43.651 HYPERVISOR: exec_cmd: vm set_nvram R2 256 
+Apr 11 15:25:43.652 HYPERVISOR: exec_cmd: vm set_ram R2 192 
+Apr 11 15:25:43.653 HYPERVISOR: exec_cmd: vm get_status R2 
+Apr 11 15:25:43.654 HYPERVISOR: exec_cmd: vm slot_add_binding R2 1 0 NM-1FE-TX 
+Apr 11 15:25:43.655 HYPERVISOR: exec_cmd: vm get_status R2 
+Apr 11 15:25:43.655 HYPERVISOR: exec_cmd: vm slot_add_binding R2 0 16 WIC-1T 
