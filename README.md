@@ -1,4 +1,4 @@
-NewsComet (NC) is an information hub simulator that allows journalists to submit pieces of news that are then distributed to users who have subscribed to their respective topics. This simulation also explores network protocols such as TCP and UDP.
+NewsComet (NC) is an information hub simulator that allows journalists to submit pieces of news that are then distributed to users who have subscribed to their respective topics. This simulation explores network protocols such as TCP and UDP.
 
 To demonstrate how NewsComet works, a demo GNS3 project file is included in this repository, which uses the Cisco 2691 router image. Additionally, a Dockerfile is provided to build the necessary containers used for running the program inside the GNS3 simulation.
 
