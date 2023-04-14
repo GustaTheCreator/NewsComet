@@ -43,7 +43,7 @@ int tcp_login(char client_ip[], int client_fd);
 
 int tcp_receive_message(int client_perms, char client_ip[], int client_fd);
 
-void tcp_process_answer(char *message, int client_perms, char client_ip[], int client_fd);
+void tcp_process_answer(char *message, int client_perms, int client_fd);
 
 void udp_receive_message(ip_list *logged_admins, int s, struct sockaddr *si_outra, socklen_t *slen);
 
@@ -294,10 +294,10 @@ int tcp_receive_message(int client_perms, char client_ip[], int client_fd)
 	nread = read(client_fd, buffer, BUFFER_SIZE); // lê a mensagem recebida e reencaminha-a para a função de resposta
 	buffer[nread] = '\0';
 
-	printf("\n\nComando TCP pelo IP %d recebido: %s", client_fd, buffer);
+	printf("\n\nComando TCP pelo IP %s recebido: %s", client_ip, buffer);
 	fflush(stdout);
 
-	tcp_process_answer(buffer, client_perms, client_ip, client_fd);
+	tcp_process_answer(buffer, client_perms, client_fd);
 
 	if(!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 		return 1;
@@ -305,7 +305,7 @@ int tcp_receive_message(int client_perms, char client_ip[], int client_fd)
 		return 0;
 }
 
-void tcp_process_answer(char *message, int client_perms, char client_ip[], int client_fd)
+void tcp_process_answer(char *message, int client_perms, int client_fd)
 {
 	char answer[BUFFER_SIZE];
 
