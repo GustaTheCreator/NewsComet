@@ -259,9 +259,9 @@ int tcp_login(char client_ip[], int client_fd)
 						if (!strcmp(token,buffer))
 						{
 							token = strtok(NULL, ","); // verifica se o valor da permissão é válido
-							if ((token[0] != 0 && atoi(token) == 0) || atoi(token) > 2 || atoi(token) < 0)
+							if ((strcmp(token,"0") && atoi(token) == 0) || atoi(token) > 2 || atoi(token) < 0)
 							{
-								write(client_fd, "Não foi possível processar as permissões desta conta, contacte um administrador!", 80);
+								write(client_fd, "Não foi possível processar as permissões desta conta, contacte um administrador!", 85);
 								fclose(file);
 								if (sem_post(users_file_sem) == -1)
 									error("no post do semáforo para o ficheiro de utilizadores!");
@@ -499,7 +499,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 
 		if (username == NULL || password == NULL || permissions == NULL)
 			sprintf(answer, "\nArgumentos inválidos!\n\n");
-		else if (permissions[0] != 0 && atoi(permissions) == 0)
+		else if (strcmp(permissions,"0") && atoi(permissions) == 0)
 			sprintf(answer, "\nO nível de permissões deve ser um número entre 0 e 2!\n\n");
 		else
 		{
@@ -610,13 +610,8 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 		}
 		sprintf(answer, "\nA sua sessão foi terminada, volte sempre!\n\n");
 	}
-	else if (!strcasecmp(token,"QUIT_SERVER")) // desligar servidor
-	{
-		sprintf(answer, "\nServidor encerrado com sucesso.\n\n");
-		if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente antes de desligar
-			error("no sendto UDP!");
-		kill(getpgrp(),SIGINT);
-	}
+	else if (!strcasecmp(token,"QUIT_SERVER")) // escrever na resposta que o pedido foi recebido e que o servidor vai encerrar
+		sprintf(answer, "\nPedido para encerrar enviado.\n\n");
 	else
 	{
 		sprintf(answer, "\nComando inválido!\n\n");
@@ -624,6 +619,9 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 		
 	if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
 		error("no sendto UDP!");
+
+	if (!strcasecmp(token,"QUIT_SERVER")) // encerrar servidor se o cliente pediu
+		kill(getpgrp(),SIGINT);
 }
 
 void sigint_handler()

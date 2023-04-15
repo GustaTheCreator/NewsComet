@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
 void error(char *msg)
 {
-	printf("\n\nErro, %s\n\n", msg);
+	printf("\nErro, %s\n\n", msg);
 	exit(-1);
 }
 
@@ -84,11 +84,14 @@ void receive_answer(int server_fd)
 	nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
 	buffer[nread] = '\0';
 	printf("\n\n%s", buffer); //varia a mensagem do que o utilizador precisa de introduzir dependedo do que o servidor envia
-	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
+	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || 
+	   !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
+	{
 		strcpy(input_needed,"Username:"); // pedido de introduzir username
+	}
 	else if(!strcmp(buffer,"Password incorreta, tente novamente!") || !strcmp(buffer,"Username encontrado!"))
 		strcpy(input_needed,"Password:"); // pedido de introduzir password
-	else if(!strcmp(buffer,"Password correta mas não foi possível processar as permissões desta conta!\nContacte um administrador para resolver este problema ou de momento tente novamente com outra conta."))
+	else if(!strcmp(buffer,"Não foi possível processar as permissões desta conta, contacte um administrador!"))
 	{
 		printf("\n\nA sessão será terminada!\n\n");
 		exit(-1); // recebeu uma mensagem de erro nesta conta, termina a sessão para forçar a iniciar noutra
