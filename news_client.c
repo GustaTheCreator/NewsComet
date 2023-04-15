@@ -27,8 +27,8 @@ void receive_answer(int server_fd);
 
 int main(int argc, char *argv[])
 {
-	printf("\n");
-	printf("Conexão em progresso...\n\n\n");
+	printf("\n\n");
+	printf("Conexão em progresso...\n\n");
 
 	int fd;
 	char endServer[100];
@@ -63,7 +63,8 @@ int main(int argc, char *argv[])
 
 void error(char *msg)
 {
-	printf("\nErro, %s\n\n", msg);
+	printf("Erro, %s\n\n\n", msg);
+	
 	exit(-1);
 }
 
