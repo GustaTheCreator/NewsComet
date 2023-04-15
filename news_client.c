@@ -27,6 +27,8 @@ void receive_answer(int server_fd);
 
 int main(int argc, char *argv[])
 {
+	printf("\n");
+	printf("Conexão em progresso...\n\n\n");
 
 	int fd;
 	char endServer[100];
@@ -34,12 +36,9 @@ int main(int argc, char *argv[])
 	struct hostent *hostPtr;
 
 	if (argc != 3)
-	{
-		error("deve utilizar os seguintes argumentos: <server_ip> <port>");
-	}
+		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
 
 	strcpy(endServer, argv[1]);
-
 	if ((hostPtr = gethostbyname(endServer)) == 0)
 		error("IP não encontrado!");
 
@@ -50,12 +49,14 @@ int main(int argc, char *argv[])
 
 	if ((fd = socket(AF_INET,SOCK_STREAM,0)) == -1)
 		error("socket inválido!");
-	else if (connect(fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
+	if (connect(fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		error("não foi possível conectar!");
-	else
-		receive_answer(fd); // recebe a mensagem de boas vindas caso não ocorram problemas
+	
+	printf("Conexão estabelecida com sucesso!\n\n\n");
 
-	session_manager(fd); // inici um gestor de sessão
+	receive_answer(fd); // recebe a mensagem de boas vindas caso não ocorram problemas
+
+	session_manager(fd); // inicia um gestor de sessão
 
 	exit(0);
 }
@@ -68,13 +69,8 @@ void error(char *msg)
 
 void session_manager(int server_fd)
 {
-	int exit_call = 0;
-    do
-    {
-    	exit_call = send_message(server_fd); // lê a mensagem a enviar para o servidor e verifica se é um pedido de saída ou não
+    while (!send_message(server_fd)) // lê a mensagem a enviar para o servidor e verifica se é um pedido de saída ou não
         receive_answer(server_fd);
-    }
-    while (!exit_call);
 }
 
 void receive_answer(int server_fd)
@@ -83,7 +79,7 @@ void receive_answer(int server_fd)
 	char buffer[BUFFER_SIZE];
 	nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
 	buffer[nread] = '\0';
-	printf("\n\n%s", buffer); //varia a mensagem do que o utilizador precisa de introduzir dependedo do que o servidor envia
+	printf("%s\n\n", buffer); //varia a mensagem do que o utilizador precisa de introduzir dependedo do que o servidor envia
 	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || 
 	   !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
 	{
@@ -103,8 +99,9 @@ void receive_answer(int server_fd)
 int send_message(int server_fd)
 {
 	char input[BUFFER_SIZE];
-	printf("\n\n%s ",input_needed); // permite a introdução de uma mensagem a ser enviada para o servidor
+	printf("%s ",input_needed); // permite a introdução de uma mensagem a ser enviada para o servidor
 	scanf("%s", input);
+	printf("\n\n");
 	write(server_fd, input, strlen(input));
 	if(!strcmp(input, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 		return 1;
