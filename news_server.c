@@ -61,7 +61,7 @@ int main()
 
 	pid_t tcp_pid = fork();
 
-	if(tcp_pid == 0)
+	if (tcp_pid == 0)
 		tcp_boot();
 	else if (tcp_pid < 0)
 		error("ao criar o fork para o protocolo TCP!\n\n");
@@ -72,7 +72,7 @@ int main()
 
 	pid_t udp_pid = fork();
 
-	if(udp_pid == 0)
+	if (udp_pid == 0)
 		udp_boot();
 	else if (udp_pid < 0)
 		error("ao criar o fork para o protocolo UDP!\n\n");
@@ -115,7 +115,7 @@ void tcp_boot()
 	if (bind(fd,(struct sockaddr*)&addr,sizeof(addr)) < 0)
 		error("no bind TCP!");
 
-	if(listen(fd, 5) < 0)
+	if (listen(fd, 5) < 0)
 		error("no listen TCP!");
 	
 	client_addr_size = sizeof(client_addr);
@@ -123,7 +123,7 @@ void tcp_boot()
 	while (1)
 	{
 
-		while(waitpid(-1,NULL,WNOHANG)>0);
+		while (waitpid(-1,NULL,WNOHANG)>0);
 
 		client_fd = accept(fd,(struct sockaddr *)&client_addr,(socklen_t *)&client_addr_size);
 		if (client_fd > 0)
@@ -147,7 +147,7 @@ void udp_boot()
 	int s;
 	socklen_t slen = sizeof(si_outra);
 
-	if((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) // cria um socket para recepção de pacotes UDP
+	if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) // cria um socket para recepção de pacotes UDP
 		error("ao criar o socket UDP!");
 
 	si_minha.sin_family = AF_INET; // preenchimento da socket address structure
@@ -158,7 +158,7 @@ void udp_boot()
 	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &True, sizeof(int)) == -1)
     	error("a definir opções do socket UDP!");
 
-	if(bind(s,(struct sockaddr*)&si_minha, sizeof(si_minha)) == -1) // associa o socket à informação de endereço
+	if (bind(s,(struct sockaddr*)&si_minha, sizeof(si_minha)) == -1) // associa o socket à informação de endereço
 		error("no bind UDP!");
 
 	ip_list logged_admins;
@@ -166,7 +166,7 @@ void udp_boot()
 	for (int i = 0; i < MAX_ADMINS; i++)
 		strcpy(logged_admins.ip[i], "");
 	
-	while(1)
+	while (1)
 	{
     	udp_receive_message(&logged_admins, s, (struct sockaddr *)&si_outra, (socklen_t *)&slen); // espera até receber uma mensagem
 	}
@@ -188,7 +188,7 @@ void tcp_session_manager(char client_ip[], int client_fd)
 
 	write(client_fd, "Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar.",90); //envia mensagem de boas vindas
 
-	int client_perms = tcp_login(client_ip, client_fd); // devolve o nivel de permissões do cliente ou -1 em caso de erro/pedido de saída
+	int client_perms = tcp_login(client_ip, client_fd); // devolve o nivel de permissões do cliente ou -1 em caso de pedido de saída
 
 	if (client_perms != -1) // se o cliente não pediu para sair e não ocorreram erros durante o login
 		while (!tcp_receive_message(client_perms, client_ip, client_fd)) {} // recebe continuamente mensagens do cliente e verifica se são um pedido de saída ou não
@@ -202,7 +202,6 @@ void tcp_session_manager(char client_ip[], int client_fd)
 
 int tcp_login(char client_ip[], int client_fd)
 {
-	int client_perms = 0;
 	char line[BUFFER_SIZE];
 	int nread;
 	char buffer[BUFFER_SIZE];
@@ -216,12 +215,12 @@ int tcp_login(char client_ip[], int client_fd)
 
 	FILE *file = fopen("users.csv", "r");
 
-	while(1)
+	while (1)
 	{
 		nread = read(client_fd, buffer, BUFFER_SIZE); // lê a tentativa de username
 		buffer[nread] = '\0';
 
-		if(!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
+		if (!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 		{
 			fclose(file);
 			if (sem_post(users_file_sem) == -1)
@@ -238,7 +237,7 @@ int tcp_login(char client_ip[], int client_fd)
 			char *token = strtok(line, ","); //procura por correspondência na lista de utilizadores
 			while (token != NULL)
 			{
-				if(!strcmp(token,buffer))
+				if (!strcmp(token,buffer))
 				{
 					fflush(stdout);
 					write(client_fd, "Username encontrado!", 20);
@@ -248,7 +247,7 @@ int tcp_login(char client_ip[], int client_fd)
 						nread = read(client_fd, buffer, BUFFER_SIZE); // lê a tentativa de password
 						buffer[nread] = '\0';
 
-						if(!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
+						if (!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 						{
 							fclose(file);
 							if (sem_post(users_file_sem) == -1)
@@ -257,19 +256,12 @@ int tcp_login(char client_ip[], int client_fd)
 							return -1;
 						}
 
-						if(!strcmp(token,buffer))
+						if (!strcmp(token,buffer))
 						{
-							token = strtok(NULL, ",");
-							if(!strcasecmp(token,"administrador"))
-								client_perms = 2;
-							else if(!strcasecmp(token,"jornalista"))
-								client_perms = 1;
-							else if (!strcasecmp(token,"leitor"))
-								client_perms = 0;
-							else
+							token = strtok(NULL, ","); // verifica se o valor da permissão é válido
+							if ((token[0] != 0 && atoi(token) == 0) || atoi(token) > 2 || atoi(token) < 0)
 							{
-								write(client_fd, "Password correta mas não foi possível processar as permissões desta conta!"
-								"\nContacte um administrador para resolver este problema ou de momento tente novamente com outra conta.", 180);
+								write(client_fd, "Não foi possível processar as permissões desta conta, contacte um administrador!", 80);
 								fclose(file);
 								if (sem_post(users_file_sem) == -1)
 									error("no post do semáforo para o ficheiro de utilizadores!");
@@ -278,7 +270,6 @@ int tcp_login(char client_ip[], int client_fd)
 							}
 
 							write(client_fd, "Login efetuado com sucesso!", 28);
-
 							printf("Login TCP pelo IP %s efetuado com sucesso.\n\n", client_ip);
 							fflush(stdout);
 
@@ -286,7 +277,8 @@ int tcp_login(char client_ip[], int client_fd)
 							if (sem_post(users_file_sem) == -1)
 								error("no post do semáforo para o ficheiro de utilizadores!");
 							sem_close(users_file_sem);
-							return client_perms;
+
+							return atoi(token); // devolve o nivel de permissões do cliente
 						}
 						else
 							write(client_fd, "Password incorreta, tente novamente!", 36);
@@ -314,7 +306,7 @@ int tcp_receive_message(int client_perms, char client_ip[], int client_fd)
 
 	tcp_process_answer(buffer, client_perms, client_fd);
 
-	if(!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
+	if (!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 		return 1;
 	else
 		return 0;
@@ -324,33 +316,33 @@ void tcp_process_answer(char *message, int client_perms, int client_fd)
 {
 	char answer[BUFFER_SIZE];
 
-	if(!strcasecmp(message, "LIST_TOPICS")) 
+	if (!strcasecmp(message, "LIST_TOPICS")) 
 	{
 		sprintf(answer, "1");
 	}
-	else if(!strcasecmp(message, "SUBSCRIBE_TOPIC"))
+	else if (!strcasecmp(message, "SUBSCRIBE_TOPIC"))
 	{
 		sprintf(answer, "2");
 	}
-	else if(!strcasecmp(message, "CREATE_TOPIC"))
+	else if (!strcasecmp(message, "CREATE_TOPIC"))
 	{
-		if(client_perms < 1)
+		if (client_perms < 1)
 			sprintf(answer, "Não tem permissões para usar este comando!");
 		else
 		{
 			sprintf(answer, "3");
 		}
 	}
-	else if(!strcasecmp(message, "SEND_NEWS"))
+	else if (!strcasecmp(message, "SEND_NEWS"))
 	{
-		if(client_perms < 1)
+		if (client_perms < 1)
 			sprintf(answer, "Não tem permissões para usar este comando!");
 		else
 		{
 			sprintf(answer, "4");
 		}
 	}
-	else if(!strcasecmp(message, "QUIT")) // devolve a mensagem que acompanha o pedido de saida antes de voltar ao loop da sessao para o quebrar
+	else if (!strcasecmp(message, "QUIT")) // devolve a mensagem que acompanha o pedido de saida antes de voltar ao loop da sessao para o quebrar
 	{
 		sprintf(answer, "Volte sempre!\n\n");
 	}
@@ -367,52 +359,58 @@ void udp_receive_message(ip_list *logged_admins, int s, struct sockaddr *si_outr
 	char buffer[BUFFER_SIZE];
 	int recv_len;
 
-	if((recv_len = recvfrom(s, buffer, BUFFER_SIZE, 0, si_outra, slen)) == -1) 
+	if ((recv_len = recvfrom(s, buffer, BUFFER_SIZE, 0, si_outra, slen)) == -1) 
 		error("no recvfrom UDP!");
 
 	buffer[recv_len]='\0'; // ignorar o restante conteúdo
 	buffer[strcspn(buffer, "\n")] = 0; // remover o \n do final da mensagem
-
 	struct sockaddr_in *sin = (struct sockaddr_in *)si_outra;
 	char client_ip[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &(sin->sin_addr), client_ip, INET_ADDRSTRLEN); // obter o endereço IPV4 do client
 
-	if(udp_login(client_ip, logged_admins, buffer, s, si_outra, *slen)) // apenas avança para o processamento do comando se ja estiver logado / ou se logar com sucesso
-		return;
 
-	printf("Comando UDP pelo IP %s recebido: %s\n\n", client_ip, buffer);
-	fflush(stdout);
-
-	udp_process_answer(client_ip, logged_admins, buffer, s, si_outra, *slen);
+	if (!udp_login(client_ip, logged_admins, buffer, s, si_outra, *slen)) // apenas avança para o processamento do comando se ja estiver logado
+	{																	 // se não estiver logado, vê se é uma tentativa de login e processa-a
+		printf("Comando UDP pelo IP %s recebido: %s\n\n", client_ip, buffer);
+		fflush(stdout);
+		udp_process_answer(client_ip, logged_admins, buffer, s, si_outra, *slen);
+	}
 }
 
 int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, struct sockaddr *si_outra, socklen_t slen)
 {
 
-	int not_logged = 1;
+	char answer[BUFFER_SIZE];
 
-	if (logged_admins->count) // há pelo menos um administrador logado
+	char buffer_copy[BUFFER_SIZE];
+	strcpy(buffer_copy, buffer); // copia da mensagem recebida para não a alterar
+
+	char *token = strtok(buffer_copy, " "); // separa a mensagem recebida em tokens
+
+	if (logged_admins->count) // há pelo menos um administrador logado (verifica se este ip está logado)
 	{
-		for(int i = 0; i < MAX_ADMINS; i++)
+		for (int i = 0; i < MAX_ADMINS; i++)
 		{
-			if(!strcmp(logged_admins->ip[i], client_ip))
+			if (!strcmp(logged_admins->ip[i], client_ip)) // este ip já está associado a uma conta de administrador
 			{
-				not_logged = 0;
-				return not_logged; // este IP já está associado a uma conta de administrador nesta sessão UDP
+				if (!strcasecmp(token,"LOGIN")) // caso esteja a tentar fazer login de novo
+				{
+					sprintf(answer, "\nO seu IP já está associado a uma conta de administrador nesta sessão UDP!\n\n");
+					if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
+						error("no sendto UDP!");
+					return -1;
+				}
+				return 0; // ja esta logado
 			}
 		}
 	}
 
-	char answer[BUFFER_SIZE];
-
-	char *token = strtok(buffer, " "); // separa a mensagem recebida em tokens
-
-	if(!strcasecmp(token, "LOGIN"))
+	if (!strcasecmp(token, "LOGIN"))
 	{
 		char *username = strtok(NULL," ");
 		char *password = strtok(NULL," ");
 
-		if(username == NULL || password == NULL)
+		if (username == NULL || password == NULL)
 			sprintf(answer, "\nArgumentos inválidos!\n\n");
 		else
 		{
@@ -426,53 +424,44 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, st
 			FILE *file = fopen("users.csv", "r");
 			char line[BUFFER_SIZE];
 
-			printf("\n\nteste1 %s", username);
-			printf("\n\nteste2 %s", token);
 			fflush(stdout);
 			sprintf(answer, "\nO username que inseriu não se encontra registado!\n\n"); // se a mensagem de resposta não for alterada, o username não existe
 
-			while(fgets(line, BUFFER_SIZE, file) != NULL)
+			while (fgets(line, BUFFER_SIZE, file) != NULL)
 			{
+				line[strcspn(line, "\n")] = 0; // remove o \n do token final da linha
+
 				token = strtok(line, ",");
-				if(!strcmp(token, username))
+				if (!strcmp(token, username))
 				{
-					printf("\n\nIP %s introduziu um username (%s) válido no login.", client_ip, token);
-					fflush(stdout);
 					token = strtok(NULL, ",");
-					if(!strcmp(token, password))
+					if (!strcmp(token, password))
 					{
-						printf("\n\nIP %s acertou a password no login.", client_ip);
-						fflush(stdout);
 						token = strtok(NULL, ",");
-						if(!strcasecmp(token, "administrador"))
+						if (atoi(token) == 2)
 						{
 							printf("Login UDP pelo IP %s efetuado com sucesso.\n\n", client_ip);
 							fflush(stdout);
 							sprintf(answer, "\nLogin de administrador efetuado com sucesso!\n\n");
 							for (int i = 0; i < MAX_ADMINS; i++)
 							{
-								if(!strcmp(logged_admins->ip[i], ""))
+								if (!strcmp(logged_admins->ip[i], ""))
 								{
 									strcpy(logged_admins->ip[i], client_ip);
 									break;
 								}
 							}
 							logged_admins->count++;
-							not_logged = 0;
 							break;
 						}
 						else
 						{
-							printf("\n\nIP %s tentou fazer login na consola de administrador com uma conta sem as respectivas permissões.", client_ip);
-							fflush(stdout);
-							sprintf(answer, "\nA conta que inseriu não tem permissões para utilizar comandos aqui!\n\n");
+							sprintf(answer, "\nA conta que inseriu não tem permissão para fazer login aqui!\n\n");
 							break;
 						}
 					}
 					else
 					{
-						printf("\n\nIP %s errou a sua password no login.", client_ip);
-						fflush(stdout);
 						sprintf(answer, "\nA password que inseriu para este username está incorreta!\n\n");
 						break;
 					}
@@ -484,28 +473,16 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, st
 			if (sem_post(users_file_sem) == -1)
         		error("no post do semáforo para o ficheiro de utilizadores!");
 			sem_close(users_file_sem);
-
-			if(!strcmp(answer, "O username que inseriu não se encontra registado!"))
-			{
-				printf("\n\nIP %s introduziu um username não registado no login.", client_ip);
-				fflush(stdout);
-			}
 		}
 	}
 	else
-	{
-		printf("\n\nIP %s tentou executar um comando na consola de administrador antes de fazer login.", client_ip);
-		fflush(stdout);
-		sprintf(answer, "\nPor favor efetue primemiro o login como administrador para utilizar qualquer comando aqui!"
+		sprintf(answer, "\nPor favor efetue primeiro o login como administrador para utilizar qualquer comando aqui!"
 						"\nSíntaxe: LOGIN <username> <password>\n\n");
-	}
 
-	answer[strlen(answer)] = '\0';
-
-	if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
+	if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta do erro ao cliente
 		error("no sendto UDP!");
 
-	return not_logged;
+	return -1;
 }
 
 void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[], int s, struct sockaddr *si_outra, socklen_t slen)
@@ -514,19 +491,16 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 
 	char *token = strtok(buffer, " "); // separa a mensagem recebida em tokens
 
-	if (!strcasecmp(token,"LOGIN"))
-	{
-		sprintf(answer, "\nO seu IP já está associado a uma conta de administrador nesta sessão UDP, não necessita de efetuar login novamente até ao próximo restart do servidor!\n\n");
-	}
-	else if(!strcasecmp(token,"ADD_USER")) // adicionar utilizador
+	if (!strcasecmp(token,"ADD_USER")) // adicionar utilizador
 	{
 		char *username = strtok(NULL, " ");
 		char *password = strtok(NULL, " ");
 		char *permissions = strtok(NULL, " ");
 
-		if(username == NULL || password == NULL || permissions == NULL)
+		if (username == NULL || password == NULL || permissions == NULL)
 			sprintf(answer, "\nArgumentos inválidos!\n\n");
-
+		else if (permissions[0] != 0 && atoi(permissions) == 0)
+			sprintf(answer, "\nO nível de permissões deve ser um número entre 0 e 2!\n\n");
 		else
 		{
 			sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
@@ -537,7 +511,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 				error("no wait do semáforo para o ficheiro de utilizadores!");
 
 			FILE *file = fopen("users.csv", "a");
-			fprintf(file,"\n%s;%s;%s", username, password, permissions);
+			fprintf(file,"%s,%s,%d", username, password, permissions);
 			
 			fclose(file);
 
@@ -548,11 +522,11 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 			sprintf(answer, "\nUtilizador adicionado com sucesso!\n\n");
 		}
 	}
-	else if(!strcasecmp(token,"DEL")) // apagar utilizador
+	else if (!strcasecmp(token,"DEL")) // apagar utilizador
 	{
 		token = strtok(NULL, " ");
 
-		if(token == NULL)
+		if (token == NULL)
 			sprintf(answer, "\nArgumento inválido!\n\n");
 		else
 		{
@@ -591,13 +565,13 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
         		error("no post do semáforo para o ficheiro de utilizadores!");
 			sem_close(users_file_sem);
 
-			if(found_user)
+			if (found_user)
 				sprintf(answer, "\nUtilizador removido com sucesso!\n\n");
 			else
 				sprintf(answer, "\nUtilizador não encontrado!\n\n");
 		}
 	}
-	else if(!strcasecmp(token,"LIST")) // listar utilizadores
+	else if (!strcasecmp(token,"LIST")) // listar utilizadores
 	{
 		sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
 		if (users_file_sem == SEM_FAILED)
@@ -621,13 +595,13 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
         	error("no post do semáforo para o ficheiro de utilizadores!");
 		sem_close(users_file_sem);
 
-		sprintf(answer, "\nLista de utilizadores:\n\n%s\n\n", line_list);
+		sprintf(answer, "\nLista de utilizadores:\n\n%s\n", line_list);
 	}
-	else if(!strcasecmp(token,"QUIT")) // fechar sessão
+	else if (!strcasecmp(token,"QUIT")) // fechar sessão
 	{
 		for (int i = 0; i < MAX_ADMINS; i++)
 		{
-			if(!strcmp(logged_admins->ip[i], client_ip))
+			if (!strcmp(logged_admins->ip[i], client_ip))
 			{
 				strcpy(logged_admins->ip[i], "");
 				logged_admins->count--;
@@ -636,10 +610,9 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 		}
 		sprintf(answer, "\nA sua sessão foi terminada, volte sempre!\n\n");
 	}
-	else if(!strcasecmp(token,"QUIT_SERVER")) // desligar servidor
+	else if (!strcasecmp(token,"QUIT_SERVER")) // desligar servidor
 	{
 		sprintf(answer, "\nServidor encerrado com sucesso.\n\n");
-		answer[strlen(answer)] = '\0';
 		if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente antes de desligar
 			error("no sendto UDP!");
 		kill(getpgrp(),SIGINT);
@@ -649,8 +622,6 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 		sprintf(answer, "\nComando inválido!\n\n");
 	}
 		
-	answer[strlen(answer)] = '\0';
-
 	if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
 		error("no sendto UDP!");
 }
@@ -659,8 +630,8 @@ void sigint_handler()
 {
 	printf("Servidor a encerrar...\n\n");
 	
-	if(sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
-			printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
+	if (sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
+		printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
 	else	
 		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
 
