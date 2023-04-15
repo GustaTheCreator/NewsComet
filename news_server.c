@@ -359,7 +359,7 @@ void tcp_process_answer(char *message, int client_perms, int client_fd)
 	}
 	else if (!strcasecmp(message, "QUIT")) // devolve a mensagem que acompanha o pedido de saida antes de voltar ao loop da sessao para o quebrar
 	{
-		sprintf(answer, "\nA sua sessão foi terminada com sucesso!\n\n");
+		sprintf(answer, "A sua sessão foi terminada com sucesso!");
 	}
 	else
 	{

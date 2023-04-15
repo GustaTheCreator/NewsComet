@@ -27,7 +27,7 @@ void receive_answer(int server_fd);
 
 int main(int argc, char *argv[])
 {
-	printf("\n\n");
+	printf("\n");
 	printf("Conexão em progresso...\n\n");
 
 	int fd;
@@ -58,12 +58,14 @@ int main(int argc, char *argv[])
 
 	session_manager(fd); // inicia um gestor de sessão
 
+	receive_answer(fd); // recebe a mensagem de despedida
+
 	exit(0);
 }
 
 void error(char *msg)
 {
-	printf("Erro, %s\n\n\n", msg);
+	printf("Erro, %s\n\n", msg);
 	exit(-1);
 }
 
@@ -87,13 +89,13 @@ void receive_answer(int server_fd)
 	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || //varia a mensagem do que o utilizador deve introduzir
 	   !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
 	{
-		strcpy(input_needed,"Username:"); // pedido de introduzir username
+		strcpy(input_needed,"Username >>>"); // pedido de introduzir username
 	}
 	else if(!strcmp(buffer,"Password incorreta, tente novamente!") || !strcmp(buffer,"Username encontrado!"))
-		strcpy(input_needed,"Password:"); // pedido de introduzir password
+		strcpy(input_needed,"Password >>>"); // pedido de introduzir password
 	else if(!strcmp(buffer,"Não foi possível processar as permissões desta conta, contacte um administrador!"))
 	{
-		printf("\n\nA sessão será terminada!\n\n");
+		printf("A sessão será terminada!\n\n");
 		exit(-1); // recebeu uma mensagem de erro nesta conta, termina a sessão para forçar a iniciar noutra
 	}
 	else
