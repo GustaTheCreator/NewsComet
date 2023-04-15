@@ -264,7 +264,7 @@ int tcp_login(char client_ip[], int client_fd)
 
 							write(client_fd, "Login efetuado com sucesso!", 28);
 
-							printf("\n\nLogin TCP pelo IP %s efetuado com sucesso.\n Entrou numa conta com nível %d de permissões.", client_ip, client_perms);
+							printf("\n\nLogin TCP pelo IP %s efetuado com sucesso.", client_ip);
 							fflush(stdout);
 
 							fclose(file);
@@ -431,7 +431,7 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, st
 						token = strtok(NULL, ",");
 						if(!strcasecmp(token, "administrador"))
 						{
-							printf("\n\nLogin UDP pelo IP %s efetuado com sucesso.\n Entrou numa conta com username %s de administrador.", client_ip, username);
+							printf("\n\nLogin UDP pelo IP %s efetuado com sucesso.", client_ip);
 							fflush(stdout);
 							sprintf(answer, "\nLogin de administrador efetuado com sucesso!\n\n");
 							for (int i = 0; i < MAX_ADMINS; i++)
