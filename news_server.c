@@ -477,7 +477,7 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, st
 	}
 	else
 		sprintf(answer, "\nPor favor efetue primeiro o login como administrador para utilizar qualquer comando aqui!"
-						"\nSíntaxe: LOGIN <username> <password>\n\n");
+						"\nDeve utilizar o seguinte comando: LOGIN [username] [password]\n\n");
 
 	if (sendto(s, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta do erro ao cliente
 		error("no sendto UDP!");
