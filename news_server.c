@@ -104,7 +104,7 @@ void tcp_boot()
 
 	int True = 1;
 	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &True, sizeof(True)) == -1)
-		error("a definir opções do socket TCP!");	
+		error("a definir as opções do socket TCP!");	
 
 	if (bind(socket_fd,(struct sockaddr*)&addr,sizeof(addr)) < 0)
 		error("no bind TCP!");
@@ -156,7 +156,7 @@ void udp_boot()
 
 	int True = 1;
 	if (setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, &True, sizeof(int)) == -1)
-    	error("a definir opções do socket UDP!");
+    	error("a definir as opções do socket UDP!");
 
 	if (bind(tcp_socket,(struct sockaddr*)&si_minha, sizeof(si_minha)) == -1) // associa o socket à informação de endereço
 		error("no bind UDP!");
@@ -278,11 +278,12 @@ int tcp_login(char client_ip[], int client_fd)
 							char menu[BUFFER_SIZE];
 							sprintf(menu, 	"Login efetuado com sucesso!\n\n"
 											"Comandos disponíveis:\n"
-											"- LIST_TOPICS							Lista todos os tópicos disponíveis\n"
-											"- SUBSCRIBE_TOPIC [topic_id]					Subscreve a um tópico");
+											"- QUIT						Termina esta sessão TCP\n"
+											"- LIST_TOPICS					Lista todos os tópicos disponíveis\n"
+											"- SUBSCRIBE_TOPIC [topic_id]			Subscreve a um tópico");
 							if (atoi(token) == 1) // adiciona ao menu os comandos extras a que o jornaista tem acesso
 								strcat(menu,"\n- CREATE_TOPIC [topic_id] [topic_title]		Cria um tópico\n"
-											"- SEND_NEWS [topic_id] [news_text]				Envia uma notícia para os subscritores de um tópico");
+											"- SEND_NEWS [topic_id] [news_text]		Envia uma notícia para os subscritores de um tópico");
 							write(client_fd, menu, strlen(menu));
 							printf("Login TCP pelo IP %s efetuado com sucesso.\n\n", client_ip);
 							fflush(stdout);
@@ -358,7 +359,7 @@ void tcp_process_answer(char *message, int client_perms, int client_fd)
 	}
 	else if (!strcasecmp(message, "QUIT")) // devolve a mensagem que acompanha o pedido de saida antes de voltar ao loop da sessao para o quebrar
 	{
-		sprintf(answer, "Volte sempre!\n\n");
+		sprintf(answer, "\nA sua sessão foi terminada com sucesso!\n\n");
 	}
 	else
 	{
@@ -458,11 +459,11 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int tcp_s
 							fflush(stdout);
 							sprintf(answer, "\nLogin de administrador efetuado com sucesso!\n\n"
 											"Comandos disponíveis:\n"
-											"- ADD_USER [username] [password] [perms]		Adiciona um utilizador ao registo\n"
-											"- DEL_USER [username]								Apaga um utilizador do registo\n"
-											"- LIST_USERS									Lista todos os utilizadores registados\n"
-											"- QUIT											Termina esta sessão UDP\n"
-											"- QUIT_SERVER									Envia um pedido para encerrar ao servidor\n\n");
+											"- QUIT						Termina esta sessão UDP\n"
+											"- ADD_USER [username] [password] [perms]	Adiciona um utilizador ao registo\n"
+											"- DEL_USER [username]				Apaga um utilizador do registo\n"
+											"- LIST_USERS					Lista todos os utilizadores registados\n"
+											"- QUIT_SERVER					Envia um pedido para encerrar ao servidor\n\n");
 							for (int i = 0; i < MAX_ADMINS; i++)
 							{
 								if (!strcmp(logged_admins->ip[i], ""))
@@ -628,7 +629,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 				break;
 			}
 		}
-		sprintf(answer, "\nA sua sessão foi terminada, volte sempre!\n\n");
+		sprintf(answer, "\nA sua sessão foi terminada com sucesso!\n\n");
 	}
 	else if (!strcasecmp(token,"QUIT_SERVER")) // escrever na resposta que o pedido foi recebido e que o servidor vai encerrar
 		sprintf(answer, "\nPedido para encerrar enviado.\n\n");
@@ -648,15 +649,16 @@ void server_shutdown()
 {
 	printf("Servidor a encerrar...\n\n");
 	fflush(stdout);
+
+	while (wait(NULL) > 0); // esperar que os protocolos encerrem
+	printf("Protocolos UDP e TCP terminados.\n\n");
+	fflush(stdout);
+
 	
 	if (sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
 		printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
 	else	
 		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
-
-	while (wait(NULL) > 0); // esperar que os protocolos encerrem
-	printf("Protocolos UDP e TCP terminados com sucesso.\n\n");
-	fflush(stdout);
 
 	printf("Servidor encerrado com sucesso!\n\n");
 	fflush(stdout);
