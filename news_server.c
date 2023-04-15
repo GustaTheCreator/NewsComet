@@ -55,12 +55,20 @@ void sigint_handler();
 
 int main()
 {
+	printf("\n");
+	printf("A iniciar o servidor de notícias...\n\n");
+	fflush(stdout);
+
 	pid_t tcp_pid = fork();
 
 	if(tcp_pid == 0)
 		tcp_boot();
 	else if (tcp_pid < 0)
 		error("ao criar o fork para o protocolo TCP!\n\n");
+
+	sleep(1); // assim este processo pode esperar para ver se algum é terminado devido a um erro antes de imprimir a mensagem de sucesso
+	printf("Protocolo TCP ativo.\n\n");
+	fflush(stdout);
 
 	pid_t udp_pid = fork();
 
@@ -69,16 +77,19 @@ int main()
 	else if (udp_pid < 0)
 		error("ao criar o fork para o protocolo UDP!\n\n");
 
-	sleep(1); // assim este processo pode esperar para ver se algum é terminado devido a um erro antes de imprimir a mensagem de sucesso
-
-	printf("\nProtocolos UDP e TCP iniciados com sucesso!");
+	sleep(1); 
+	printf("Protocolo UDP ativo.\n\n");
 	fflush(stdout);
 
+	// definir o handler para o sinal SIGINT de modo a limpar os recursos antes de terminar
 	struct sigaction sa;
     sa.sa_handler = sigint_handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
+
+	printf("Servidor iniciado com sucesso!\n\n");
+	fflush(stdout);
 
 	pause(); // espera até ao pedido de terminar o servidor
 }
@@ -95,13 +106,17 @@ void tcp_boot()
 	addr.sin_port = htons(NEWS_PORT);
 
 	if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-	error("ao criar o socket TCP!");
+		error("ao criar o socket TCP!");
+
+	int True = 1;
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &True, sizeof(True)) == -1)
+		error("a definir opções do socket TCP!");	
 
 	if (bind(fd,(struct sockaddr*)&addr,sizeof(addr)) < 0)
-	error("no bind TCP!");
+		error("no bind TCP!");
 
 	if(listen(fd, 5) < 0)
-	error("no listen TCP!");
+		error("no listen TCP!");
 	
 	client_addr_size = sizeof(client_addr);
 
@@ -133,18 +148,18 @@ void udp_boot()
 	socklen_t slen = sizeof(si_outra);
 
 	if((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) // cria um socket para recepção de pacotes UDP
-	{
 		error("ao criar o socket UDP!");
-	}
 
 	si_minha.sin_family = AF_INET; // preenchimento da socket address structure
 	si_minha.sin_port = htons(CONFIG_PORT);
 	si_minha.sin_addr.s_addr = htonl(INADDR_ANY);
 
+	int True = 1;
+	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &True, sizeof(int)) == -1)
+    	error("a definir opções do socket UDP!");
+
 	if(bind(s,(struct sockaddr*)&si_minha, sizeof(si_minha)) == -1) // associa o socket à informação de endereço
-	{
 		error("no bind UDP!");
-	}
 
 	ip_list logged_admins;
 	logged_admins.count = 0;
@@ -159,16 +174,16 @@ void udp_boot()
 
 void error(char *msg)
 {
-	printf("\n\nErro %s", msg);
+	printf("Erro %s", msg);
 	fflush(stdout);
-	printf("\n\nO servidor e ambos os protocolos serão terminados.\n\n");
+	printf("O servidor e todos os protocolos serão terminados.\n\n");
 	fflush(stdout);
 	kill(getpgrp(), SIGINT); // envia um sinal de terminação para todos os processos do grupo do servidor
 }
 
 void tcp_session_manager(char client_ip[], int client_fd)
 {
-	printf("\n\nNova conexão TCP com o IP %s estabelecida!", client_ip);
+	printf("Nova conexão TCP com o IP %s estabelecida!\n\n", client_ip);
 	fflush(stdout);
 
 	write(client_fd, "Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar.",90); //envia mensagem de boas vindas
@@ -178,7 +193,7 @@ void tcp_session_manager(char client_ip[], int client_fd)
 	if (client_perms != -1) // se o cliente não pediu para sair e não ocorreram erros durante o login
 		while (!tcp_receive_message(client_perms, client_ip, client_fd)) {} // recebe continuamente mensagens do cliente e verifica se são um pedido de saída ou não
 
-	printf("\n\nUma conexão TCP com o IP %s foi terminada!", client_ip);
+	printf("Uma conexão TCP com o IP %s foi terminada!\n\n", client_ip);
 	fflush(stdout);
 
 	close(client_fd);
@@ -264,7 +279,7 @@ int tcp_login(char client_ip[], int client_fd)
 
 							write(client_fd, "Login efetuado com sucesso!", 28);
 
-							printf("\n\nLogin TCP pelo IP %s efetuado com sucesso.", client_ip);
+							printf("Login TCP pelo IP %s efetuado com sucesso.\n\n", client_ip);
 							fflush(stdout);
 
 							fclose(file);
@@ -294,7 +309,7 @@ int tcp_receive_message(int client_perms, char client_ip[], int client_fd)
 	nread = read(client_fd, buffer, BUFFER_SIZE); // lê a mensagem recebida e reencaminha-a para a função de resposta
 	buffer[nread] = '\0';
 
-	printf("\n\nComando TCP pelo IP %s recebido: %s", client_ip, buffer);
+	printf("Comando TCP pelo IP %s recebido: %s\n\n", client_ip, buffer);
 	fflush(stdout);
 
 	tcp_process_answer(buffer, client_perms, client_fd);
@@ -365,7 +380,7 @@ void udp_receive_message(ip_list *logged_admins, int s, struct sockaddr *si_outr
 	if(udp_login(client_ip, logged_admins, buffer, s, si_outra, *slen)) // apenas avança para o processamento do comando se ja estiver logado / ou se logar com sucesso
 		return;
 
-	printf("\n\nComando UDP pelo IP %s recebido: %s", client_ip, buffer);
+	printf("Comando UDP pelo IP %s recebido: %s\n\n", client_ip, buffer);
 	fflush(stdout);
 
 	udp_process_answer(client_ip, logged_admins, buffer, s, si_outra, *slen);
@@ -431,7 +446,7 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int s, st
 						token = strtok(NULL, ",");
 						if(!strcasecmp(token, "administrador"))
 						{
-							printf("\n\nLogin UDP pelo IP %s efetuado com sucesso.", client_ip);
+							printf("Login UDP pelo IP %s efetuado com sucesso.\n\n", client_ip);
 							fflush(stdout);
 							sprintf(answer, "\nLogin de administrador efetuado com sucesso!\n\n");
 							for (int i = 0; i < MAX_ADMINS; i++)
@@ -642,13 +657,15 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 
 void sigint_handler()
 {
-	printf("\n\nServidor a encerrar...");
+	printf("Servidor a encerrar...\n\n");
 	
 	if(sem_unlink("/user_file_sem") == -1)
-		error("a eliminar semáforo para o ficheiro de utilizadores!");
-	printf("\n\nSemáforo para o ficheiro de utilizadores limpo.");
+		if(errno != ENOENT) // se o erro for por o semáforo não existir então este simplesmente nunca chegou a ser preciso (não é mesmo erro)
+			printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
+	else	
+		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
 
-	printf("\n\nServidor encerrado com sucesso!\n\n");
+	printf("Servidor encerrado com sucesso!\n\n");
 	
 	fflush(stdout);
 
