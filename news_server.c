@@ -647,6 +647,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 void server_shutdown()
 {
 	printf("Servidor a encerrar...\n\n");
+	fflush(stdout);
 	
 	if (sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
 		printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
@@ -654,10 +655,27 @@ void server_shutdown()
 		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
 
 	while (wait(NULL) > 0); // esperar que os protocolos encerrem
+	printf("Protocolos UDP e TCP terminados com sucesso.\n\n");
+	fflush(stdout);
 
 	printf("Servidor encerrado com sucesso!\n\n");
-	
 	fflush(stdout);
+
+	_exit(EXIT_SUCCESS);
+}
+
+void udp_shutdown()
+{
+	if (close(socket_udp) == -1)
+		printf("Erro a fechar o socket UDP!\n\n");
+
+	_exit(EXIT_SUCCESS);
+}
+
+void tcp_shutdown()
+{
+	if(close(socket_tcp) == -1)
+		printf("Erro a fechar o socket TCP!\n\n");
 
 	_exit(EXIT_SUCCESS);
 }

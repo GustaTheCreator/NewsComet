@@ -64,7 +64,6 @@ int main(int argc, char *argv[])
 void error(char *msg)
 {
 	printf("Erro, %s\n\n\n", msg);
-	
 	exit(-1);
 }
 
@@ -79,9 +78,13 @@ void receive_answer(int server_fd)
 	int nread;
 	char buffer[BUFFER_SIZE];
 	nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
+	if(nread == -1)
+		error("não foi obtida uma resposta do servidor!");
+
 	buffer[nread] = '\0';
-	printf("%s\n\n", buffer); //varia a mensagem do que o utilizador precisa de introduzir dependedo do que o servidor envia
-	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || 
+	printf("%s\n\n", buffer);
+
+	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || //varia a mensagem do que o utilizador deve introduzir
 	   !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
 	{
 		strcpy(input_needed,"Username:"); // pedido de introduzir username
@@ -103,7 +106,8 @@ int send_message(int server_fd)
 	printf("%s ",input_needed); // permite a introdução de uma mensagem a ser enviada para o servidor
 	scanf("%s", input);
 	printf("\n\n");
-	write(server_fd, input, strlen(input));
+	if(write(server_fd, input, strlen(input)) == -1)
+		error("não foi possível enviar a mensagem!");
 	if(!strcmp(input, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 		return 1;
 	else
