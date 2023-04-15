@@ -659,8 +659,7 @@ void sigint_handler()
 {
 	printf("Servidor a encerrar...\n\n");
 	
-	if(sem_unlink("/user_file_sem") == -1)
-		if(errno != ENOENT) // se o erro for por o semáforo não existir então este simplesmente nunca chegou a ser preciso (não é mesmo erro)
+	if(sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
 			printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
 	else	
 		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
