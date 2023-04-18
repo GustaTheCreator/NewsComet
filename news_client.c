@@ -27,10 +27,10 @@ void receive_answer(int server_fd);
 
 int main(int argc, char *argv[])
 {
+	printf("\n");
 	if (argc != 3)
 		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
 
-	printf("\n");
 	printf("Conexão em progresso...\n\n");
 
 	int fd;
