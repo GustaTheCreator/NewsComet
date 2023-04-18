@@ -532,7 +532,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 				error("no wait do semáforo para o ficheiro de utilizadores!");
 
 			FILE *file = fopen("users.csv", "a");
-			fprintf(file,"\n%s,%s,%d", username, password, atoi(permissions));
+			fprintf(file,"%s,%s,%d\n", username, password, atoi(permissions));
 			
 			fclose(file);
 
@@ -616,7 +616,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
         	error("no post do semáforo para o ficheiro de utilizadores!");
 		sem_close(users_file_sem);
 
-		sprintf(answer, "\nLista de utilizadores:\n\n%s\n", line_list);
+		sprintf(answer, "\nLista de utilizadores:\n\n%s\n\n", line_list);
 	}
 	else if (!strcasecmp(token,"QUIT")) // fechar sessão
 	{
@@ -642,7 +642,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 		error("no sendto UDP!");
 
 	if (!strcasecmp(token,"QUIT_SERVER")) // encerrar servidor se o cliente pediu
-		kill(getpgrp(),SIGINT);
+		kill(getppid(),SIGINT);
 }
 
 void server_shutdown()
