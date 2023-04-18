@@ -32,6 +32,7 @@ typedef struct ip_list
 }ip_list;
 
 int socket_tcp, socket_udp;
+pid_t tcp_pid, udp_pid;
 
 void tcp_boot();
 void udp_boot();
@@ -53,7 +54,7 @@ int main()
 	printf("A iniciar o servidor de notícias...\n\n");
 	fflush(stdout);
 
-	pid_t tcp_pid = fork();
+	tcp_pid = fork();
 
 	if (tcp_pid == 0)
 		tcp_boot();
@@ -64,7 +65,7 @@ int main()
 	printf("Protocolo TCP ativo.\n\n");
 	fflush(stdout);
 
-	pid_t udp_pid = fork();
+	udp_pid = fork();
 
 	if (udp_pid == 0)
 		udp_boot();
@@ -181,7 +182,7 @@ void udp_boot()
 
 void error(char *msg)
 {
-	printf("Erro %s", msg);
+	printf("Erro %s\n\n", msg);
 	fflush(stdout);
 	printf("O servidor e todos os protocolos serão terminados.\n\n");
 	fflush(stdout);
@@ -650,11 +651,11 @@ void server_shutdown()
 	printf("Servidor a encerrar...\n\n");
 	fflush(stdout);
 
-	while (wait(NULL) > 0); // esperar que os protocolos encerrem
-	printf("Protocolos UDP e TCP terminados.\n\n");
-	fflush(stdout);
+	kill(udp_pid, SIGINT);
+	kill(tcp_pid, SIGINT);
 
-	
+	while(wait(NULL) > 0);
+
 	if (sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
 		printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
 	else	
