@@ -27,6 +27,9 @@ void receive_answer(int server_fd);
 
 int main(int argc, char *argv[])
 {
+	if (argc != 3)
+		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
+
 	printf("\n");
 	printf("Conexão em progresso...\n\n");
 
@@ -34,9 +37,6 @@ int main(int argc, char *argv[])
 	char endServer[100];
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
-
-	if (argc != 3)
-		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
 
 	strcpy(endServer, argv[1]);
 	if ((hostPtr = gethostbyname(endServer)) == 0)
