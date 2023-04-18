@@ -616,7 +616,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
         	error("no post do semáforo para o ficheiro de utilizadores!");
 		sem_close(users_file_sem);
 
-		sprintf(answer, "\nLista de utilizadores:\n\n%s\n\n", line_list);
+		sprintf(answer, "\nLista de utilizadores:\n\n%s\n", line_list);
 	}
 	else if (!strcasecmp(token,"QUIT")) // fechar sessão
 	{
