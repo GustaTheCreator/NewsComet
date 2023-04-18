@@ -532,7 +532,7 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 				error("no wait do semáforo para o ficheiro de utilizadores!");
 
 			FILE *file = fopen("users.csv", "a");
-			fprintf(file,"%s,%s,%d", username, password, atoi(permissions));
+			fprintf(file,"\n%s,%s,%d", username, password, atoi(permissions));
 			
 			fclose(file);
 
