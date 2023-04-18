@@ -1,0 +1,5 @@
+666:1000:1001:/home/news_server.c
+644:0:0:/home/.gns3_perms
+666:1000:1001:/home/users.csv
+755:0:0:/home/news_server
+777:0:0:/home
