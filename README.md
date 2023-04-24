@@ -3,7 +3,9 @@
 </h1>
 
 <p align="center">
-  <img src="res/logo.png" alt="NewsComet logo" width="200px">
+  <picture>
+    <img src="res/logo.png" alt="NewsComet logo" width="200px">
+  </picture>
 </p>
 
 <p align="center">
