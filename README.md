@@ -34,6 +34,8 @@ git clone https://github.com/Diogu-Simoes/NewsComet.git
   ```
   make
   ```
+  
+* The object files can be found in the `bin` folder and the executables in the root
  
 * (Optional) Setup the GNS3 network
 <p>
