@@ -37,7 +37,10 @@
     make
     ```
   
-  * The object files can be found in the `bin` folder and the executables in the root
+  * The `.o` files will be found in the `bin` folder and the `.exe` in the root, you can also use the `Makefile` to remove them
+    ```
+    make clean
+    ```
  
 * (Optional) Setup the GNS3 network
   ```
