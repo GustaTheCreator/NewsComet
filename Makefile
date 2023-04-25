@@ -1,3 +1,4 @@
+# lpthread and D_REENTRANT are mandatory flags
 FLAGS = -lpthread -D_REENTRANT -Wall -Wextra -Wundef -Wshadow -Wswitch-default
 
 all: news_server.exe news_client.exe
