@@ -25,15 +25,6 @@
 #define BUFFER_SIZE 1024 // limite de uma mensagem
 #define MAX_ADMINS 5 // maximo de admins com sessões udp abertas neste instância do servidor
 
-typedef struct ip_list
-{
-	char ip[MAX_ADMINS][INET_ADDRSTRLEN];
-	int count;
-}ip_list;
-
-int socket_tcp, socket_udp;
-pid_t tcp_pid, udp_pid;
-
 void tcp_boot();
 void udp_boot();
 void error(char *msg);
@@ -41,12 +32,9 @@ void tcp_session_manager(char client_ip[], int client_fd);
 int tcp_login(char client_ip[], int client_fd);
 int tcp_receive_message(int client_perms, char client_ip[], int client_fd);
 void tcp_process_answer(char *message, int client_perms, int client_fd);
-void udp_receive_message(ip_list *logged_admins, int tcp_socket, struct sockaddr *si_outra, socklen_t *slen);
-int udp_login(char client_ip[] ,ip_list *logged_admins, char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen);
-void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen);
-void server_shutdown();
-void tcp_shutdown();
-void udp_shutdown();
+void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int tcp_socket, struct sockaddr *si_outra, socklen_t *slen);
+int udp_login(char client_ip[] ,char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen);
+void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen);
 
 int main()
 {
@@ -54,7 +42,7 @@ int main()
 	printf("A iniciar o servidor de notícias...\n\n");
 	fflush(stdout);
 
-	tcp_pid = fork();
+	pid_t tcp_pid = fork();
 
 	if (tcp_pid == 0)
 		tcp_boot();
@@ -65,7 +53,7 @@ int main()
 	printf("Protocolo TCP ativo.\n\n");
 	fflush(stdout);
 
-	udp_pid = fork();
+	pid_t udp_pid = fork();
 
 	if (udp_pid == 0)
 		udp_boot();
@@ -77,16 +65,34 @@ int main()
 	fflush(stdout);
 
 	// definir o handler para o sinal SIGINT de modo a limpar os recursos antes de terminar
-	struct sigaction sa;
-    sa.sa_handler = server_shutdown;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
 
 	printf("Servidor iniciado com sucesso!\n\n");
 	fflush(stdout);
 
-	pause(); // espera até ao pedido de terminar o servidor
+	int sig;
+	sigwait(&set, &sig); // espera até ao pedido de terminar o servidor
+
+	printf("Servidor a encerrar...\n\n");
+	fflush(stdout);
+
+	kill(udp_pid, SIGINT);
+	kill(tcp_pid, SIGINT);
+	
+	while(wait(NULL) > 0);
+
+	if (sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
+		printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
+	else	
+		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
+
+	printf("Servidor encerrado com sucesso!\n\n");
+	fflush(stdout);
+
+	exit(EXIT_SUCCESS);
 }
 
 void tcp_boot()
@@ -103,22 +109,11 @@ void tcp_boot()
 	if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 		error("ao criar o socket TCP!");
 
-	int True = 1;
-	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &True, sizeof(True)) == -1)
-		error("a definir as opções do socket TCP!");	
-
 	if (bind(socket_fd,(struct sockaddr*)&addr,sizeof(addr)) < 0)
 		error("no bind TCP!");
 
 	if (listen(socket_fd, 5) < 0)
 		error("no listen TCP!");
-
-	// definir o handler para o sinal SIGINT de modo a limpar os recursos antes de terminar
-	struct sigaction sa;
-    sa.sa_handler = tcp_shutdown;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
 
 	client_addr_size = sizeof(client_addr);
 
@@ -155,28 +150,16 @@ void udp_boot()
 	si_minha.sin_port = htons(CONFIG_PORT);
 	si_minha.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	int True = 1;
-	if (setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, &True, sizeof(int)) == -1)
-    	error("a definir as opções do socket UDP!");
-
 	if (bind(tcp_socket,(struct sockaddr*)&si_minha, sizeof(si_minha)) == -1) // associa o socket à informação de endereço
 		error("no bind UDP!");
 
-	// definir o handler para o sinal SIGINT de modo a limpar os recursos antes de terminar
-	struct sigaction sa;
-    sa.sa_handler = udp_shutdown;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
-
-	ip_list logged_admins;
-	logged_admins.count = 0;
+	char logged_admins[MAX_ADMINS][INET_ADDRSTRLEN];
 	for (int i = 0; i < MAX_ADMINS; i++)
-		strcpy(logged_admins.ip[i], "");
+		strcpy(logged_admins[i], "");
 	
 	while (1)
 	{
-    	udp_receive_message(&logged_admins, tcp_socket, (struct sockaddr *)&si_outra, (socklen_t *)&slen); // espera até receber uma mensagem
+    	udp_receive_message(logged_admins, tcp_socket, (struct sockaddr *)&si_outra, (socklen_t *)&slen); // espera até receber uma mensagem
 	}
 }
 
@@ -370,7 +353,7 @@ void tcp_process_answer(char *message, int client_perms, int client_fd)
 	write(client_fd, answer, strlen(answer));
 }
 
-void udp_receive_message(ip_list *logged_admins, int tcp_socket, struct sockaddr *si_outra, socklen_t *slen)
+void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int tcp_socket, struct sockaddr *si_outra, socklen_t *slen)
 {
 	char buffer[BUFFER_SIZE];
 	int recv_len;
@@ -393,7 +376,7 @@ void udp_receive_message(ip_list *logged_admins, int tcp_socket, struct sockaddr
 	}
 }
 
-int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen)
+int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen)
 {
 
 	char answer[BUFFER_SIZE];
@@ -403,21 +386,18 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int tcp_s
 
 	char *token = strtok(buffer_copy, " "); // separa a mensagem recebida em tokens
 
-	if (logged_admins->count) // há pelo menos um administrador logado (verifica se este ip está logado)
+	for (int i = 0; i < MAX_ADMINS; i++) // verifica se este ip está logado
 	{
-		for (int i = 0; i < MAX_ADMINS; i++)
+		if (!strcmp(logged_admins[i], client_ip)) // este ip já está associado a uma conta de administrador
 		{
-			if (!strcmp(logged_admins->ip[i], client_ip)) // este ip já está associado a uma conta de administrador
+			if (!strcasecmp(token,"LOGIN")) // caso esteja a tentar fazer login de novo
 			{
-				if (!strcasecmp(token,"LOGIN")) // caso esteja a tentar fazer login de novo
-				{
-					sprintf(answer, "\nO seu IP já está associado a uma conta de administrador nesta sessão UDP!\n\n");
-					if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
-						error("no sendto UDP!");
-					return -1;
-				}
-				return 0; // ja esta logado
+				sprintf(answer, "\nO seu IP já está associado a uma conta de administrador nesta sessão UDP!\n\n");
+				if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
+					error("no sendto UDP!");
+				return -1;
 			}
+			return 0; // ja esta logado
 		}
 	}
 
@@ -467,13 +447,12 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int tcp_s
 											"- QUIT_SERVER					Envia um pedido para encerrar ao servidor\n\n");
 							for (int i = 0; i < MAX_ADMINS; i++)
 							{
-								if (!strcmp(logged_admins->ip[i], ""))
+								if (!strcmp(logged_admins[i], ""))
 								{
-									strcpy(logged_admins->ip[i], client_ip);
+									strcpy(logged_admins[i], client_ip);
 									break;
 								}
 							}
-							logged_admins->count++;
 							break;
 						}
 						else
@@ -507,7 +486,7 @@ int udp_login(char client_ip[], ip_list *logged_admins, char buffer[], int tcp_s
 	return -1;
 }
 
-void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen)
+void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen)
 {
 	char answer[BUFFER_SIZE];
 
@@ -623,10 +602,9 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 	{
 		for (int i = 0; i < MAX_ADMINS; i++)
 		{
-			if (!strcmp(logged_admins->ip[i], client_ip))
+			if (!strcmp(logged_admins[i], client_ip))
 			{
-				strcpy(logged_admins->ip[i], "");
-				logged_admins->count--;
+				strcpy(logged_admins[i], "");
 				break;
 			}
 		}
@@ -644,41 +622,4 @@ void udp_process_answer(char client_ip[], ip_list *logged_admins, char buffer[],
 
 	if (!strcasecmp(token,"QUIT_SERVER")) // encerrar servidor se o cliente pediu
 		kill(getppid(),SIGINT);
-}
-
-void server_shutdown()
-{
-	printf("Servidor a encerrar...\n\n");
-	fflush(stdout);
-
-	kill(udp_pid, SIGINT);
-	kill(tcp_pid, SIGINT);
-
-	while(wait(NULL) > 0);
-
-	if (sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
-		printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
-	else	
-		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
-
-	printf("Servidor encerrado com sucesso!\n\n");
-	fflush(stdout);
-
-	_exit(EXIT_SUCCESS);
-}
-
-void udp_shutdown()
-{
-	if (close(socket_udp) == -1)
-		printf("Erro a fechar o socket UDP!\n\n");
-
-	_exit(EXIT_SUCCESS);
-}
-
-void tcp_shutdown()
-{
-	if(close(socket_tcp) == -1)
-		printf("Erro a fechar o socket TCP!\n\n");
-
-	_exit(EXIT_SUCCESS);
 }

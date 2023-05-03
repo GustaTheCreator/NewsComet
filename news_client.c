@@ -72,7 +72,12 @@ void error(char *msg)
 void session_manager(int server_fd)
 {
     while (!send_message(server_fd)) // lê a mensagem a enviar para o servidor e verifica se é um pedido de saída ou não
-        receive_answer(server_fd);
+	{
+		if(send(server_fd, NULL, 0, MSG_NOSIGNAL) != -1) // verificar se a socket está aberta / a receber mensagens
+        	receive_answer(server_fd);
+		else
+			error("o servidor não respondeu, é possível que tenha sido desligado!");
+	}
 }
 
 void receive_answer(int server_fd)
