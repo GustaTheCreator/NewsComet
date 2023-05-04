@@ -107,7 +107,8 @@ void receive_answer(int server_fd)
 int send_message(int server_fd)
 {
 	char input[BUFFER_SIZE];
-	scanf("%s", input);
+	fgets(input, BUFFER_SIZE, stdin);
+	input[strcspn(input, "\n")] = '\0';
 	if(write(server_fd, input, strlen(input)) == -1)
 		error("não foi possível enviar a mensagem!");
 	if(!strcmp(input, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão

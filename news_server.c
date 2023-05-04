@@ -392,7 +392,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		{
 			if (!strcasecmp(token,"LOGIN")) // caso esteja a tentar fazer login de novo
 			{
-				sprintf(answer, "\nO seu IP já está associado a uma conta de administrador nesta sessão UDP!\n\n");
+				sprintf(answer, "O seu IP já está associado a uma conta de administrador nesta sessão UDP!");
 				if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
 					error("no sendto UDP!");
 				return -1;
@@ -407,7 +407,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		char *password = strtok(NULL," ");
 
 		if (username == NULL || password == NULL)
-			sprintf(answer, "\nArgumentos inválidos!\n\n");
+			sprintf(answer, "Argumentos inválidos!");
 		else
 		{
 			sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
@@ -421,7 +421,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 			char line[BUFFER_SIZE];
 
 			fflush(stdout);
-			sprintf(answer, "\nO username que inseriu não se encontra registado!\n\n"); // se a mensagem de resposta não for alterada, o username não existe
+			sprintf(answer, "O username que inseriu não se encontra registado!"); // se a mensagem de resposta não for alterada, o username não existe
 
 			while (fgets(line, BUFFER_SIZE, file) != NULL)
 			{
@@ -438,13 +438,13 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 						{
 							printf("Login UDP pelo IP %s efetuado com sucesso.\n\n", client_ip);
 							fflush(stdout);
-							sprintf(answer, "\nLogin de administrador efetuado com sucesso!\n\n"
+							sprintf(answer, "Login de administrador efetuado com sucesso!\n\n"
 											"Comandos disponíveis:\n"
 											"- QUIT						Termina esta sessão UDP\n"
 											"- ADD_USER [username] [password] [perms]	Adiciona um utilizador ao registo\n"
 											"- DEL_USER [username]				Apaga um utilizador do registo\n"
 											"- LIST_USERS					Lista todos os utilizadores registados\n"
-											"- QUIT_SERVER					Envia um pedido para encerrar ao servidor\n\n");
+											"- QUIT_SERVER					Envia um pedido para encerrar ao servidor");
 							for (int i = 0; i < MAX_ADMINS; i++)
 							{
 								if (!strcmp(logged_admins[i], ""))
@@ -457,13 +457,13 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 						}
 						else
 						{
-							sprintf(answer, "\nA conta que inseriu não tem permissão para fazer login aqui!\n\n");
+							sprintf(answer, "A conta que inseriu não tem permissão para fazer login aqui!");
 							break;
 						}
 					}
 					else
 					{
-						sprintf(answer, "\nA password que inseriu para este username está incorreta!\n\n");
+						sprintf(answer, "A password que inseriu para este username está incorreta!");
 						break;
 					}
 				}
@@ -477,8 +477,8 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		}
 	}
 	else
-		sprintf(answer, "\nPor favor efetue primeiro o login como administrador para utilizar qualquer comando aqui!"
-						"\nDeve utilizar o seguinte comando: LOGIN [username] [password]\n\n");
+		sprintf(answer, "Por favor efetue primeiro o login como administrador para utilizar qualquer comando aqui!\n"
+						"Deve utilizar o seguinte comando: LOGIN [username] [password]");
 
 	if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta do erro ao cliente
 		error("no sendto UDP!");
@@ -499,9 +499,9 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 		char *permissions = strtok(NULL, " ");
 
 		if (username == NULL || password == NULL || permissions == NULL)
-			sprintf(answer, "\nArgumentos inválidos!\n\n");
+			sprintf(answer, "Argumentos inválidos!");
 		else if (strcmp(permissions,"0") && atoi(permissions) == 0)
-			sprintf(answer, "\nO nível de permissões deve ser um número entre 0 e 2!\n\n");
+			sprintf(answer, "O nível de permissões deve ser um número entre 0 e 2!");
 		else
 		{
 			sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
@@ -520,7 +520,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
         		error("no post do semáforo para o ficheiro de utilizadores!");
 			sem_close(users_file_sem);
 
-			sprintf(answer, "\nUtilizador adicionado com sucesso!\n\n");
+			sprintf(answer, "Utilizador adicionado com sucesso!");
 		}
 	}
 	else if (!strcasecmp(token,"DEL_USER")) // apagar utilizador
@@ -567,9 +567,9 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			sem_close(users_file_sem);
 
 			if (found_user)
-				sprintf(answer, "\nUtilizador removido com sucesso!\n\n");
+				sprintf(answer, "Utilizador removido com sucesso!");
 			else
-				sprintf(answer, "\nUtilizador não encontrado!\n\n");
+				sprintf(answer, "Utilizador não encontrado!");
 		}
 	}
 	else if (!strcasecmp(token,"LIST_USERS")) // listar utilizadores
@@ -596,7 +596,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
         	error("no post do semáforo para o ficheiro de utilizadores!");
 		sem_close(users_file_sem);
 
-		sprintf(answer, "\nLista de utilizadores:\n\n%s\n", line_list);
+		sprintf(answer, "Lista de utilizadores:\n\n%s", line_list);
 	}
 	else if (!strcasecmp(token,"QUIT")) // fechar sessão
 	{
@@ -608,13 +608,13 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 				break;
 			}
 		}
-		sprintf(answer, "\nA sua sessão foi terminada com sucesso!\n\n");
+		sprintf(answer, "A sua sessão foi terminada com sucesso!");
 	}
 	else if (!strcasecmp(token,"QUIT_SERVER")) // escrever na resposta que o pedido foi recebido e que o servidor vai encerrar
-		sprintf(answer, "\nPedido para encerrar enviado.\n\n");
+		sprintf(answer, "Pedido para encerrar enviado.");
 	else
 	{
-		sprintf(answer, "\nComando inválido!\n\n");
+		sprintf(answer, "Comando inválido!");
 	}
 		
 	if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
