@@ -15,7 +15,6 @@
 #define BUFFER_SIZE 1024
 #define h_addr h_addr_list[0] // para compatibilidade com várias versões da bibiloteca netdb.h
 
-char input_needed[BUFFER_SIZE];
 void error(char *msg);
 void session_manager(int server_fd);
 int send_message(int server_fd);
@@ -79,6 +78,7 @@ void session_manager(int server_fd)
 void receive_answer(int server_fd)
 {
 	int nread;
+	char input_needed[BUFFER_SIZE];
 	char buffer[BUFFER_SIZE];
 	nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
 	if(nread == -1)
@@ -101,12 +101,12 @@ void receive_answer(int server_fd)
 	}
 	else
 		strcpy(input_needed,">>>"); // o login foi completo, pedido de introduzir comandos
+	printf("%s ",input_needed);
 }
 
 int send_message(int server_fd)
 {
 	char input[BUFFER_SIZE];
-	printf("%s ",input_needed); // permite a introdução de uma mensagem a ser enviada para o servidor
 	scanf("%s", input);
 	printf("\n\n");
 	if(write(server_fd, input, strlen(input)) == -1)
