@@ -16,13 +16,9 @@
 #define h_addr h_addr_list[0] // para compatibilidade com várias versões da bibiloteca netdb.h
 
 char input_needed[BUFFER_SIZE];
-
 void error(char *msg);
-
 void session_manager(int server_fd);
-
 int send_message(int server_fd);
-
 void receive_answer(int server_fd);
 
 int main(int argc, char *argv[])
