@@ -23,10 +23,11 @@ void receive_answer(int server_fd);
 int main(int argc, char *argv[])
 {
 	printf("\n");
+	
 	if (argc != 3)
 		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
 
-	printf("Conexão em progresso...\n\n");
+	printf("Conexão em progresso...\n\n\n");
 
 	int socket_fd;
 	char endServer[100];
@@ -47,7 +48,7 @@ int main(int argc, char *argv[])
 	if (connect(socket_fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		error("não foi possível conectar!");
 	
-	printf("Conexão estabelecida com sucesso!\n");
+	printf("Conexão estabelecida com sucesso!\n\n");
 
 	receive_answer(socket_fd); // recebe a mensagem de boas vindas caso não ocorram problemas
 
@@ -81,12 +82,13 @@ void receive_answer(int server_fd)
 {
 	int nread;
 	char buffer[BUFFER_SIZE];
+
 	nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
 	if(nread == -1)
-		error("não foi obtida uma resposta do servidor!");
+		error("não foi possível receber a resposta do servidor!");
 
 	buffer[nread] = '\0';
-	printf("\n\n%s\n\n", buffer);
+	printf("%s\n\n", buffer);
 
 	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || //varia a mensagem do que o utilizador deve introduzir
 	   !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
@@ -108,6 +110,7 @@ int send_message(int server_fd)
 {
 	char input[BUFFER_SIZE];
 	fgets(input, BUFFER_SIZE, stdin);
+	printf("\n\n");
 	input[strcspn(input, "\n")] = '\0';
 	if(write(server_fd, input, strlen(input)) == -1)
 		error("não foi possível enviar a mensagem!");

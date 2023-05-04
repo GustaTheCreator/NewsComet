@@ -15,8 +15,12 @@ void receive_answer(int socket_fd, struct sockaddr *addr, socklen_t slen);
 
 int main(int argc, char *argv[]) 
 {
+    printf("\n");
+    
 	if (argc != 3)
 		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
+
+    printf("Inicialização em progresso...\n\n");
 
     int socket_fd; //file descriptor
     char endServer[100];
@@ -38,9 +42,12 @@ int main(int argc, char *argv[])
     if (connect(socket_fd, (struct sockaddr *) &addr, slen) < 0)
         error("não foi possível conectar!");
 
-    if(sendto(socket_fd, "found_successfull", strlen("found_successfull"), 0, (struct sockaddr *) &addr, slen) == -1)
-        error("não foi possível enviar a mensagem!");
-    receive_answer(socket_fd, (struct sockaddr *) &addr, slen); // recebe a mensagem de boas vindas caso não ocorram problemas
+    printf("Pronto para comunicar com o servidor!\n\n\n");
+
+    printf("Comece por fazer login como administrador, deve utilizar o seguinte comando:\n"
+           "LOGIN [username] [password]\n\n");
+        
+    printf(">>> ");
 
 	session_manager(socket_fd, (struct sockaddr *) &addr, slen); // inicia um gestor de sessão
 
@@ -68,17 +75,18 @@ void receive_answer(int socket_fd, struct sockaddr *addr, socklen_t slen)
     char answer[BUFFER_SIZE];
     int nread;
     if((nread = recvfrom(socket_fd, answer, BUFFER_SIZE, 0, addr, &slen)) == -1)
-        error("não foi possível receber a resposta do servidor!");
+        error("o servidor não respondeu, é possível que tenha sido desligado!");
 
     answer[nread]='\0'; // ignorar o restante conteúdo
 
-    printf("\n\n%s\n\n>>>  ", answer);
+    printf("%s\n\n>>> ", answer);
 }
 
 int send_message(int socket_fd, struct sockaddr *addr, socklen_t slen)
 {
 	char input[BUFFER_SIZE];
 	fgets(input, BUFFER_SIZE, stdin);
+    printf("\n\n");
 	input[strcspn(input, "\n")] = '\0';
 	if(sendto(socket_fd, input, strlen(input), 0, addr, slen) == -1)
         error("não foi possível enviar a mensagem!");
