@@ -39,32 +39,46 @@ int main(int argc, char *argv[])
     if (connect(socket_fd, (struct sockaddr *) &addr, slen) < 0)
         error("não foi possível conectar!");
 
-    char input[BUFFER_SIZE];
-    char answer[BUFFER_SIZE];
-
 	//receive_answer(fd); // recebe a mensagem de boas vindas caso não ocorram problemas
 
 	//session_manager(fd); // inicia um gestor de sessão
 
 	//receive_answer(fd); // recebe a mensagem de despedida
 
-    if(sendto(socket_fd, input, strlen(input), 0, (struct sockaddr *) &addr, slen) == -1)
-        error("não foi possível enviar a mensagem!");
+    close(socket_fd);
 
-    if(recvfrom(socket_fd, answer, sizeof(answer), 0, (struct sockaddr *) &addr, &slen) == -1)
-        error("não foi possível receber a resposta do servidor!");
-
-    printf("%s", answer);
-
-    if (strcmp(input, "QUIT_SERVER") == 0) 
-    {
-        close(socket_fd);
-        return 0;
-    }
+    exit(0);
 }
 
 void error(char *input)
 {
 	printf("Erro, %socket_fd\n\n", input);
 	exit(-1);
+}
+
+void session_manager(int server_fd)
+{
+    while (!send_message(server_fd)) // lê a mensagem a enviar para o servidor e verifica se é um pedido de saída ou não
+        receive_answer(server_fd);
+}
+
+void receive_answer(int server_fd)
+{
+    if(recvfrom(socket_fd, answer, sizeof(answer), 0, (struct sockaddr *) &addr, &slen) == -1)
+        error("não foi possível receber a resposta do servidor!");
+    printf("%s", answer);
+}
+
+int send_message(int server_fd)
+{
+	char input[BUFFER_SIZE];
+    char answer[BUFFER_SIZE];
+	scanf("%s", input);
+	printf("\n\n");
+	if(sendto(socket_fd, input, strlen(input), 0, (struct sockaddr *) &addr, slen) == -1)
+        error("não foi possível enviar a mensagem!");
+    if (strcmp(input, "QUIT_SERVER") == 0) 
+        return 1;
+	else
+		return 0;
 }
