@@ -70,7 +70,7 @@ void receive_answer(int socket_fd, struct sockaddr *addr, socklen_t slen)
     if((nread = recvfrom(socket_fd, answer, BUFFER_SIZE, 0, addr, &slen)) == -1)
         error("não foi possível receber a resposta do servidor!");
 
-    answer[nread-1]='\0'; // ignorar o restante conteúdo
+    answer[nread]='\0'; // ignorar o restante conteúdo
 
     printf("\n\n%s\n\n>>>  ", answer);
 }
