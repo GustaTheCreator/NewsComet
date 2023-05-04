@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 	if (connect(socket_fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		error("não foi possível conectar!");
 	
-	printf("Conexão estabelecida com sucesso!\n\n\n");
+	printf("Conexão estabelecida com sucesso!\n");
 
 	receive_answer(socket_fd); // recebe a mensagem de boas vindas caso não ocorram problemas
 
@@ -80,37 +80,34 @@ void session_manager(int server_fd)
 void receive_answer(int server_fd)
 {
 	int nread;
-	char input_needed[BUFFER_SIZE];
 	char buffer[BUFFER_SIZE];
 	nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
 	if(nread == -1)
 		error("não foi obtida uma resposta do servidor!");
 
 	buffer[nread] = '\0';
-	printf("%s\n\n", buffer);
+	printf("\n\n%s\n\n", buffer);
 
 	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || //varia a mensagem do que o utilizador deve introduzir
 	   !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
 	{
-		strcpy(input_needed,"Username >>>"); // pedido de introduzir username
+		printf("Username >>> "); // pedido de introduzir username
 	}
 	else if(!strcmp(buffer,"Password incorreta, tente novamente!") || !strcmp(buffer,"Username encontrado!"))
-		strcpy(input_needed,"Password >>>"); // pedido de introduzir password
+		printf("Password >>> "); // pedido de introduzir password
 	else if(!strcmp(buffer,"Não foi possível processar as permissões desta conta, contacte um administrador!"))
 	{
 		printf("A sessão será terminada!\n\n");
 		exit(-1); // recebeu uma mensagem de erro nesta conta, termina a sessão para forçar a iniciar noutra
 	}
 	else
-		strcpy(input_needed,">>>"); // o login foi completo, pedido de introduzir comandos
-	printf("%s ",input_needed);
+		printf(">>> "); // o login foi completo, pedido de introduzir comandos
 }
 
 int send_message(int server_fd)
 {
 	char input[BUFFER_SIZE];
 	scanf("%s", input);
-	printf("\n\n");
 	if(write(server_fd, input, strlen(input)) == -1)
 		error("não foi possível enviar a mensagem!");
 	if(!strcmp(input, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
