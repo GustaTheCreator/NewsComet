@@ -47,8 +47,6 @@ int main(int argc, char *argv[])
     printf("Comece por fazer login como administrador, deve utilizar o seguinte comando:\n"
            "LOGIN [username] [password]\n\n");
         
-    printf(">>> ");
-
 	session_manager(socket_fd, (struct sockaddr *) &addr, slen); // inicia um gestor de sessão
 
 	receive_answer(socket_fd, (struct sockaddr *) &addr, slen); // recebe a mensagem de despedida
@@ -79,17 +77,22 @@ void receive_answer(int socket_fd, struct sockaddr *addr, socklen_t slen)
 
     answer[nread]='\0'; // ignorar o restante conteúdo
 
-    printf("%s\n\n>>> ", answer);
+    printf("%s\n\n", answer);
 }
 
 int send_message(int socket_fd, struct sockaddr *addr, socklen_t slen)
 {
 	char input[BUFFER_SIZE];
+
+    printf(">>> ");
 	fgets(input, BUFFER_SIZE, stdin);
     printf("\n\n");
+
 	input[strcspn(input, "\n")] = '\0';
+
 	if(sendto(socket_fd, input, strlen(input), 0, addr, slen) == -1)
         error("não foi possível enviar a mensagem!");
+
     if (strcmp(input, "QUIT") == 0) 
         return 1;
 	else

@@ -476,6 +476,8 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 			sem_close(users_file_sem);
 		}
 	}
+	else if(!strcasecmp(token, "QUIT"))
+		sprintf(answer, "A sua sessão foi terminada com sucesso!");
 	else
 		sprintf(answer, "Por favor efetue primeiro o login como administrador para utilizar qualquer comando aqui!\n"
 						"Deve utilizar o seguinte comando: LOGIN [username] [password]");
