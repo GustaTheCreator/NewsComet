@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 
 	printf("Conexão em progresso...\n\n");
 
-	int fd;
+	int socket_fd;
 	char endServer[100];
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
@@ -42,18 +42,20 @@ int main(int argc, char *argv[])
 	addr.sin_addr.s_addr = ((struct in_addr *)(hostPtr->h_addr))->s_addr;
 	addr.sin_port = htons((short) atoi(argv[2]));
 
-	if ((fd = socket(AF_INET,SOCK_STREAM,0)) == -1)
+	if ((socket_fd = socket(AF_INET,SOCK_STREAM,0)) == -1)
 		error("socket inválido!");
-	if (connect(fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
+	if (connect(socket_fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		error("não foi possível conectar!");
 	
 	printf("Conexão estabelecida com sucesso!\n\n\n");
 
-	receive_answer(fd); // recebe a mensagem de boas vindas caso não ocorram problemas
+	receive_answer(socket_fd); // recebe a mensagem de boas vindas caso não ocorram problemas
 
-	session_manager(fd); // inicia um gestor de sessão
+	session_manager(socket_fd); // inicia um gestor de sessão
 
-	receive_answer(fd); // recebe a mensagem de despedida
+	receive_answer(socket_fd); // recebe a mensagem de despedida
+
+	close(socket_fd);
 
 	exit(0);
 }
