@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 	if (argc != 3)
 		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
 
-	printf("Conexão em progresso...\n\n\n");
+	printf("Conexão em progresso...\n\n");
 
 	int socket_fd;
 	char endServer[100];
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 	if (connect(socket_fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		error("não foi possível conectar!");
 	
-	printf("Conexão estabelecida com sucesso!\n\n");
+	printf("Conexão estabelecida com sucesso!\n\n\n");
 
 	receive_answer(socket_fd); // recebe a mensagem de boas vindas caso não ocorram problemas
 
