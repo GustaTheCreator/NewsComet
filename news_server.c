@@ -372,7 +372,7 @@ void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int tcp_socket, 
 	if (!udp_login(client_ip, logged_admins, buffer, tcp_socket, si_outra, *slen)) // apenas avança para o processamento do comando se ja estiver logado
 	{																	 // se não estiver logado, vê se é uma tentativa de login e processa-a
 		if (!strcmp(buffer, "QUIT"))
-			printf("Login UDP pelo IP %s esquecido da memória!", client_ip);
+			printf("Login UDP pelo IP %s esquecido da memória!\n\n", client_ip);
 		else
 			printf("Comando UDP pelo IP %s recebido: %s\n\n", client_ip, buffer);
 		fflush(stdout);
