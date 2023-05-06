@@ -11,11 +11,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <signal.h>
 
 #define BUFFER_SIZE 1024
 #define h_addr h_addr_list[0] // para compatibilidade com várias versões da bibiloteca netdb.h
 
+int socket_fd;
+
 void error(char *msg);
+void sigint_handler();
 void session_manager(int server_fd);
 int send_message(int server_fd);
 void receive_answer(int server_fd);
@@ -29,7 +33,6 @@ int main(int argc, char *argv[])
 
 	printf("Conexão em progresso...\n\n");
 
-	int socket_fd;
 	char endServer[100];
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
@@ -48,6 +51,17 @@ int main(int argc, char *argv[])
 	if (connect(socket_fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		error("não foi possível conectar!");
 	
+	struct sigaction sh;
+	sh.sa_handler = sigint_handler;
+    sigemptyset(&sh.sa_mask);
+    sh.sa_flags = 0;
+
+    // Install the signal handler
+    if (sigaction(SIGINT, &sh, NULL) == -1) {
+        error("não foi possível instalar o signal handler!");
+        exit(1);
+    }
+	
 	printf("Conexão estabelecida com sucesso!\n\n\n");
 
 	receive_answer(socket_fd); // recebe a mensagem de boas vindas caso não ocorram problemas
@@ -58,13 +72,35 @@ int main(int argc, char *argv[])
  
 	close(socket_fd);
 
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 void error(char *msg)
 {
 	printf("Erro, %s\n\n", msg);
 	exit(-1);
+}
+
+void sigint_handler() 
+{
+	int nread;
+	char buffer[BUFFER_SIZE];
+
+	printf("QUIT\n\n");
+
+    if(write(socket_fd,"QUIT", strlen("QUIT")) == -1)
+		error("não foi possível enviar a mensagem!");
+
+	nread = read(socket_fd, buffer, BUFFER_SIZE);
+	if(nread == -1)
+		error("não foi possível receber a resposta do servidor!");
+
+	buffer[nread] = '\0';
+	printf("%s\n\n", buffer);
+
+	close(socket_fd);
+	
+	_exit(EXIT_SUCCESS);
 }
 
 void session_manager(int server_fd)
@@ -102,7 +138,7 @@ void receive_answer(int server_fd)
 		printf("A sessão será terminada!\n\n");
 		exit(-1); // recebeu uma mensagem de erro nesta conta, termina a sessão para forçar a iniciar noutra
 	}
-	else if(!strcmp(buffer,"A sua sessão foi terminada com sucesso!"))
+	else if(!strcmp(buffer,"A sua sessão foi terminada com sucesso!") || !strcmp(buffer,"Processo de login cancelado!"))
 		return;
 	else
 		printf(">>> "); // o login foi completo, pedido de introduzir comandos
