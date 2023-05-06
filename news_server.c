@@ -396,7 +396,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		{
 			if (!strcasecmp(token,"LOGIN")) // caso esteja a tentar fazer login de novo
 			{
-				sprintf(answer, "O seu IP já está associado a uma conta de administrador nesta sessão UDP!\n\n"
+				sprintf(answer, "O seu IP já está associado a uma sessão UDP de administrador!\n\n"
 											"Comandos disponíveis:\n"
 											"- QUIT						Termina esta sessão UDP\n"
 											"- ADD_USER [username] [password] [perms]	Adiciona um utilizador ao registo\n"
