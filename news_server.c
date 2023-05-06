@@ -217,6 +217,7 @@ int tcp_login(char client_ip[], int client_fd)
 			if (sem_post(users_file_sem) == -1)
 				error("no post do semáforo para o ficheiro de utilizadores!");
 			sem_close(users_file_sem);
+			write(client_fd, "Processo de login cancelado!", strlen("Processo de login cancelado!"));
 			return -1;
 		}
 
@@ -370,7 +371,10 @@ void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int tcp_socket, 
 
 	if (!udp_login(client_ip, logged_admins, buffer, tcp_socket, si_outra, *slen)) // apenas avança para o processamento do comando se ja estiver logado
 	{																	 // se não estiver logado, vê se é uma tentativa de login e processa-a
-		printf("Comando UDP pelo IP %s recebido: %s\n\n", client_ip, buffer);
+		if (!strcmp(buffer, "QUIT"))
+			printf("Login UDP pelo IP %s esquecido da memória!", client_ip);
+		else
+			printf("Comando UDP pelo IP %s recebido: %s\n\n", client_ip, buffer);
 		fflush(stdout);
 		udp_process_answer(client_ip, logged_admins, buffer, tcp_socket, si_outra, *slen);
 	}
@@ -477,7 +481,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		}
 	}
 	else if(!strcasecmp(token, "QUIT"))
-		sprintf(answer, "A sua sessão foi terminada com sucesso!");
+		sprintf(answer, "Processo de login cancelado!");
 	else
 		sprintf(answer, "Por favor efetue primeiro o login como administrador para utilizar qualquer comando aqui!\n"
 						"Deve utilizar o seguinte comando: LOGIN [username] [password]");
