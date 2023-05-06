@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	session_manager(socket_fd); // inicia um gestor de sessão
 
 	receive_answer(socket_fd); // recebe a mensagem de despedida
-
+ 
 	close(socket_fd);
 
 	exit(0);
@@ -102,6 +102,8 @@ void receive_answer(int server_fd)
 		printf("A sessão será terminada!\n\n");
 		exit(-1); // recebeu uma mensagem de erro nesta conta, termina a sessão para forçar a iniciar noutra
 	}
+	else if(!strcmp(buffer,"A sua sessão foi terminada com sucesso!"))
+		return;
 	else
 		printf(">>> "); // o login foi completo, pedido de introduzir comandos
 }
@@ -109,9 +111,12 @@ void receive_answer(int server_fd)
 int send_message(int server_fd)
 {
 	char input[BUFFER_SIZE];
+
 	fgets(input, BUFFER_SIZE, stdin);
 	printf("\n\n");
+
 	input[strcspn(input, "\n")] = '\0';
+
 	if(write(server_fd, input, strlen(input)) == -1)
 		error("não foi possível enviar a mensagem!");
 	if(!strcmp(input, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
