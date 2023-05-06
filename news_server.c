@@ -489,7 +489,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 	else if(!strcasecmp(token, "QUIT"))
 		sprintf(answer, "Processo de login cancelado!");
 	else
-		sprintf(answer, "Por favor efetue primeiro o login como administrador para utilizar qualquer comando aqui!\n"
+		sprintf(answer, "Por favor efetue primeiro o login como administrador para utilizar qualquer outro comando aqui!\n"
 						"Deve utilizar o seguinte comando: LOGIN [username] [password]");
 
 	if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta do erro ao cliente
