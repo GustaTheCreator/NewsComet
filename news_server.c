@@ -396,7 +396,13 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		{
 			if (!strcasecmp(token,"LOGIN")) // caso esteja a tentar fazer login de novo
 			{
-				sprintf(answer, "O seu IP já está associado a uma conta de administrador nesta sessão UDP, pode enviar comandos!");
+				sprintf(answer, "O seu IP já está associado a uma conta de administrador nesta sessão UDP!\n\n"
+											"Comandos disponíveis:\n"
+											"- QUIT						Termina esta sessão UDP\n"
+											"- ADD_USER [username] [password] [perms]	Adiciona um utilizador ao registo\n"
+											"- DEL_USER [username]				Apaga um utilizador do registo\n"
+											"- LIST_USERS					Lista todos os utilizadores registados\n"
+											"- QUIT_SERVER					Envia um pedido para encerrar ao servidor");
 				if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
 					error("no sendto UDP!");
 				return -1;
