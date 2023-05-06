@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 
     printf("Pronto para comunicar com o servidor!\n\n\n");
 
-    printf("Comece por fazer login como administrador, deve utilizar o seguinte comando:\n"
+    printf("Comece por fazer login como administrador caso ainda não tenha sessão iniciada, deve utilizar o seguinte comando:\n"
            "LOGIN [username] [password]\n\n");
         
 	session_manager(socket_fd, (struct sockaddr *) &addr, slen); // inicia um gestor de sessão
