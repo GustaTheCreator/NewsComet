@@ -350,7 +350,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 		}
 		else
 		{
-			sprintf(answer, "Tópicos disponíveis:\n\n");
+			sprintf(answer, "Tópicos disponíveis para subscrição:\n\n");
 			char topic[BUFFER_SIZE];
 			for (int i = 0; i < topics_count; i++)
 			{
@@ -372,7 +372,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				if (atoi(id) == topics[i].id)
 				{
 					found = 1;
-					sprintf(answer, "#%s#%s#%d#Subscrição efetuada com sucesso!",topics[i].title, topics[i].ip, topics[i].port);
+					sprintf(answer, "%d#%s#%s#%d", topics[i].id, topics[i].title, topics[i].ip, topics[i].port);
 				}
 			}
 			if (!found)
