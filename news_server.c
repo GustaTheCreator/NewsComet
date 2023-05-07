@@ -19,11 +19,14 @@
 #include <semaphore.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/shm.h>
 
 #define CONFIG_PORT 8999 // UDP (Usar com news_admin --> ./news_admin localhost 8999)
 #define NEWS_PORT 9000 // TCP (Usar com news_client --> ./news_client localhost 9000)
 #define MULTICAST_START_PORT 9001
 #define MULTICAST_START_ADDR "224.0.0.1"
+#define SEM_NAME "/user_sem"
+#define SHM_KEY 7999
 #define BUFFER_SIZE 1024 // limite de uma mensagem
 #define MAX_ADMINS 5 // maximo de admins com sessões udp abertas neste instância do servidor
 #define MAX_TOPICS 200 // maximo de tópicos
@@ -38,8 +41,11 @@ struct topic
 	int socket_fd;
 };
 
-struct topic topics[MAX_TOPICS]; 
-int topics_count = 0;
+int shmid_topics;
+int shmid_topics_count;
+struct topic *topics; 
+int *topics_count;
+sem_t *user_sem;
 
 void tcp_boot();
 void udp_boot();
@@ -51,12 +57,17 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd);
 void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int socket_fd, struct sockaddr *client_addr, socklen_t *slen);
 int udp_login(char client_ip[] ,char logged_admins[][INET_ADDRSTRLEN], char buffer[], int socket_fd, struct sockaddr *client_addr, socklen_t slen);
 void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int socket_fd, struct sockaddr *client_addr, socklen_t slen);
+void clean_shared();
 
 int main()
 {
 	printf("\n\n");
 	printf("A iniciar o servidor de notícias...\n\n");
 	fflush(stdout);
+
+	user_sem = sem_open(SEM_NAME, O_CREAT, 0777, 1);
+	if (user_sem == SEM_FAILED)
+		error("a criar semáforo para o ficheiro de utilizadores!");
 
 	pid_t tcp_pid = fork();
 
@@ -100,7 +111,9 @@ int main()
 	
 	while(wait(NULL) > 0);
 
-	if (sem_unlink("/user_file_sem") == -1 && errno != ENOENT)
+	if(sem_close(user_sem) == -1)
+		printf("Erro a fechar semáforo para o ficheiro de utilizadores!\n\n");
+	else if (sem_unlink(SEM_NAME) == -1 && errno != ENOENT)
 		printf("Erro a eliminar semáforo para o ficheiro de utilizadores!\n\n");
 	else	
 		printf("Semáforo para o ficheiro de utilizadores limpo.\n\n");
@@ -136,6 +149,31 @@ void tcp_boot()
 		error("no listen TCP!");
 
 	client_addr_size = sizeof(client_addr);
+
+	struct sigaction sa;
+    sa.sa_handler = clean_shared;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+	{
+    	error("a definir o handler para o sinal SIGINT!");
+	}
+
+	shmid_topics = shmget(SHM_KEY, MAX_TOPICS * sizeof(struct topic), IPC_CREAT | 0777);
+	if (shmid_topics < 0)
+		error("a criar a memória partilhada para os tópicos!");
+	shmid_topics_count = shmget(SHM_KEY + 1, sizeof(int), IPC_CREAT | 0777);
+	if (shmid_topics_count < 0)
+		error("a criar a memória partilhada para o contador de tópicos!");
+	topics = shmat(shmid_topics, NULL, 0);
+	if (topics == (void*)-1)
+		error("a dar attach à memória partilhada dos tópicos!");
+	topics_count = shmat(shmid_topics_count, NULL, 0);
+	if (topics_count == (void*)-1)
+		error("a dar attach à memória partilhada do contador de tópicos!");
+
+	*topics_count = 0;
 
 	while (1)
 	{
@@ -221,11 +259,7 @@ int tcp_login(char client_ip[], int client_fd)
 	int nread;
 	char buffer[BUFFER_SIZE];
 
-	sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
-	if (users_file_sem == SEM_FAILED)
-		error("a criar semáforo para o ficheiro de utilizadores!");
-
-	if (sem_wait(users_file_sem) == -1)
+	if (sem_wait(user_sem) == -1)
 		error("no wait do semáforo para o ficheiro de utilizadores!");
 
 	FILE *file = fopen("users.csv", "r");
@@ -238,9 +272,9 @@ int tcp_login(char client_ip[], int client_fd)
 		if (!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 		{
 			fclose(file);
-			if (sem_post(users_file_sem) == -1)
+			if (sem_post(user_sem) == -1)
 				error("no post do semáforo para o ficheiro de utilizadores!");
-			sem_close(users_file_sem);
+			sem_close(user_sem);
 			write(client_fd, "Processo de login cancelado!", strlen("Processo de login cancelado!"));
 			return -1;
 		}
@@ -266,9 +300,10 @@ int tcp_login(char client_ip[], int client_fd)
 						if (!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 						{
 							fclose(file);
-							if (sem_post(users_file_sem) == -1)
+							if (sem_post(user_sem) == -1)
 								error("no post do semáforo para o ficheiro de utilizadores!");
-							sem_close(users_file_sem);
+							sem_close(user_sem);
+							write(client_fd, "Processo de login cancelado!", strlen("Processo de login cancelado!"));
 							return -1;
 						}
 
@@ -279,9 +314,9 @@ int tcp_login(char client_ip[], int client_fd)
 							{
 								write(client_fd, "Não foi possível processar as permissões desta conta, a sua sessão será terminada, contacte um administrador!", 109); 
 								fclose(file);
-								if (sem_post(users_file_sem) == -1)
+								if (sem_post(user_sem) == -1)
 									error("no post do semáforo para o ficheiro de utilizadores!");
-								sem_close(users_file_sem);
+								sem_close(user_sem);
 								return -1;
 							}
 							char menu[BUFFER_SIZE];
@@ -298,9 +333,9 @@ int tcp_login(char client_ip[], int client_fd)
 							fflush(stdout);
 
 							fclose(file);
-							if (sem_post(users_file_sem) == -1)
+							if (sem_post(user_sem) == -1)
 								error("no post do semáforo para o ficheiro de utilizadores!");
-							sem_close(users_file_sem);
+							sem_close(user_sem);
 
 							return atoi(token); // devolve o nivel de permissões do cliente
 						}
@@ -344,17 +379,17 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 
 	if (!strcasecmp(token, "LIST_TOPICS")) 
 	{
-		if (topics_count == 0)
+		if (*topics_count == 0)
 		{
 			sprintf(answer, "Ainda não existem tópicos publicados!");
 		}
 		else
 		{
-			sprintf(answer, "Tópicos disponíveis para subscrição:\n\n");
+			sprintf(answer, "Tópicos disponíveis para subscrição:\n");
 			char topic[BUFFER_SIZE];
-			for (int i = 0; i < topics_count; i++)
+			for (int i = 0; i < *topics_count; i++)
 			{
-				sprintf(topic, "%s | ID: %d\n", topics[i].title, topics[i].id);
+				sprintf(topic, "\n%s | ID: %d", topics[i].title, topics[i].id);
 				strcat(answer, topic);
 			}
 		}
@@ -367,7 +402,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 		else
 		{
 			int found = 0;
-			for (int i = 0; i < topics_count; i++)
+			for (int i = 0; i < *topics_count; i++)
 			{
 				if (atoi(id) == topics[i].id)
 				{
@@ -406,7 +441,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 			}
 
 			int valid = 1;
-			for (int i = 0; i < topics_count; i++)
+			for (int i = 0; i < *topics_count; i++)
 			{
 				if (atoi(id) == topics[i].id)
 				{
@@ -424,7 +459,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				struct topic new_topic;
 				new_topic.id = atoi(id);
 				strcpy(new_topic.title, title);
-				new_topic.port = MULTICAST_START_PORT + topics_count;
+				new_topic.port = MULTICAST_START_PORT + *topics_count;
 
 				char copy[INET_ADDRSTRLEN];
 				int octets[4];
@@ -435,7 +470,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 					octets[i] = atoi(octet);
 					octet = strtok(NULL, ".");
 				}
-				octets[3] += topics_count;
+				octets[3] += *topics_count;
 				sprintf(new_topic.ip, "%d.%d.%d.%d", octets[0], octets[1], octets[2], octets[3]);
 
 				struct sockaddr_in addr;
@@ -453,9 +488,9 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 
 				new_topic.socket_fd = socket_fd;
 				new_topic.addr = addr;
-				topics[topics_count] = new_topic;
+				topics[*topics_count] = new_topic;
 
-				topics_count++;
+				*topics_count = *topics_count + 1;
 
 				sprintf(answer, "Tópico criado com sucesso!");
 			}
@@ -473,7 +508,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 		else
 		{
 			int found = 0;
-			for (int i = 0; i < topics_count; i++)
+			for (int i = 0; i < *topics_count; i++)
 			{
 				if (atoi(id) == topics[i].id)
 				{
@@ -580,11 +615,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 			sprintf(answer, "Argumentos inválidos!");
 		else
 		{
-			sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
-			if (users_file_sem == SEM_FAILED)
-				error("a criar semáforo para o ficheiro de utilizadores!");
-
-			if (sem_wait(users_file_sem) == -1)
+			if (sem_wait(user_sem) == -1)
 				error("no wait do semáforo para o ficheiro de utilizadores!");
 
 			FILE *file = fopen("users.csv", "r");
@@ -641,9 +672,9 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 
 			fclose(file);
 
-			if (sem_post(users_file_sem) == -1)
+			if (sem_post(user_sem) == -1)
         		error("no post do semáforo para o ficheiro de utilizadores!");
-			sem_close(users_file_sem);
+			sem_close(user_sem);
 		}
 	}
 	else if(!strcasecmp(token, "QUIT"))
@@ -676,11 +707,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			sprintf(answer, "O nível de permissões deve ser um número entre 0 e 2!");
 		else
 		{
-			sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
-			if (users_file_sem == SEM_FAILED)
-				error("a criar semáforo para o ficheiro de utilizadores!");
-
-			if (sem_wait(users_file_sem) == -1)
+			if (sem_wait(user_sem) == -1)
 				error("no wait do semáforo para o ficheiro de utilizadores!");
 
 			FILE *file = fopen("users.csv", "a");
@@ -688,9 +715,9 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			
 			fclose(file);
 
-			if (sem_post(users_file_sem) == -1)
+			if (sem_post(user_sem) == -1)
         		error("no post do semáforo para o ficheiro de utilizadores!");
-			sem_close(users_file_sem);
+			sem_close(user_sem);
 
 			sprintf(answer, "Utilizador adicionado com sucesso!");
 		}
@@ -703,11 +730,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			sprintf(answer, "\nArgumento inválido!\n\n");
 		else
 		{
-			sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
-			if (users_file_sem == SEM_FAILED)
-				error("a criar semáforo para o ficheiro de utilizadores!");
-
-			if (sem_wait(users_file_sem) == -1)
+			if (sem_wait(user_sem) == -1)
 				error("no wait do semáforo para o ficheiro de utilizadores!");
 
 			FILE *file = fopen("users.csv", "r");
@@ -734,9 +757,9 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 
 			fclose(file);
 
-			if (sem_post(users_file_sem) == -1)
+			if (sem_post(user_sem) == -1)
         		error("no post do semáforo para o ficheiro de utilizadores!");
-			sem_close(users_file_sem);
+			sem_close(user_sem);
 
 			if (found_user)
 				sprintf(answer, "Utilizador removido com sucesso!");
@@ -746,11 +769,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 	}
 	else if (!strcasecmp(token,"LIST_USERS")) // listar utilizadores
 	{
-		sem_t *users_file_sem = sem_open("/user_file_sem", O_CREAT, 0777, 1);
-		if (users_file_sem == SEM_FAILED)
-			error("a criar semáforo para o ficheiro de utilizadores!");
-
-		if (sem_wait(users_file_sem) == -1)
+		if (sem_wait(user_sem) == -1)
         	error("no wait do semáforo para o ficheiro de utilizadores!");
 
 		FILE* file = fopen("users.csv", "r");
@@ -764,9 +783,9 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 
 		fclose(file);
 
-		if (sem_post(users_file_sem) == -1)
+		if (sem_post(user_sem) == -1)
         	error("no post do semáforo para o ficheiro de utilizadores!");
-		sem_close(users_file_sem);
+		sem_close(user_sem);
 
 		sprintf(answer, "Lista de utilizadores:\n\n%s", line_list);
 	}
@@ -794,4 +813,13 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 
 	if (!strcasecmp(token,"QUIT_SERVER")) // encerrar servidor se o cliente pediu
 		kill(getppid(),SIGINT);
+}
+
+void clean_shared()
+{
+	shmdt(topics);
+	shmdt(topics_count);
+	shmctl(shmid_topics, IPC_RMID, NULL);
+	shmctl(shmid_topics_count, IPC_RMID, NULL);
+	_exit(EXIT_SUCCESS);
 }
