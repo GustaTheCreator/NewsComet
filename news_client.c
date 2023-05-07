@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +18,7 @@
 #define h_addr h_addr_list[0] // para compatibilidade com várias versões da bibiloteca netdb.h
 #define MAX_TOPICS 200
 
-struct topic
+struct subbed_topic
 {
 	int id;
 	char title[BUFFER_SIZE/2];
@@ -25,17 +26,18 @@ struct topic
 	int port;
 	struct sockaddr_in addr;
 	int socket_fd;
+	struct ip_mreq mreq;
 };
 
-int socket_fd;
-struct topic subbed_topics[MAX_TOPICS];
+int server_fd;
+struct subbed_topic subbed_topics[MAX_TOPICS];
 int subbed_topics_count = 0;
 
 void error(char *msg);
 void sigint_handler();
-void session_manager(int server_fd);
-int send_message(int server_fd);
-void receive_answer(int server_fd);
+void session_manager();
+int send_message();
+void receive_answer();
 
 int main(int argc, char *argv[])
 {
@@ -46,7 +48,7 @@ int main(int argc, char *argv[])
 
 	printf("Conexão em progresso...\n\n");
 
-	char endServer[100];
+	char endServer[BUFFER_SIZE];
 	struct sockaddr_in addr;
 	struct hostent *hostPtr;
 
@@ -59,9 +61,9 @@ int main(int argc, char *argv[])
 	addr.sin_addr.s_addr = ((struct in_addr *)(hostPtr->h_addr))->s_addr;
 	addr.sin_port = htons((short) atoi(argv[2]));
 
-	if ((socket_fd = socket(AF_INET,SOCK_STREAM,0)) == -1)
-		error("socket inválido!");
-	if (connect(socket_fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
+	if ((server_fd = socket(AF_INET,SOCK_STREAM,0)) == -1)
+		error("socket inválida!");
+	if (connect(server_fd,(struct sockaddr *)&addr,sizeof (addr)) < 0)
 		error("não foi possível conectar!");
 	
 	struct sigaction sh;
@@ -77,13 +79,13 @@ int main(int argc, char *argv[])
 	
 	printf("Conexão estabelecida com sucesso!\n\n\n");
 
-	receive_answer(socket_fd); // recebe a mensagem de boas vindas caso não ocorram problemas
+	receive_answer(); // recebe a mensagem de boas vindas caso não ocorram problemas
 
-	session_manager(socket_fd); // inicia um gestor de sessão
+	session_manager(); // inicia um gestor de sessão
 
-	receive_answer(socket_fd); // recebe a mensagem de despedida
+	receive_answer(); // recebe a mensagem de despedida
  
-	close(socket_fd);
+	close(server_fd);
 
 	exit(EXIT_SUCCESS);
 }
@@ -101,33 +103,47 @@ void sigint_handler()
 
 	printf("QUIT\n\n");
 
-    if(write(socket_fd,"QUIT", strlen("QUIT")) == -1)
+    if(write(server_fd,"QUIT", strlen("QUIT")) == -1)
 		error("não foi possível enviar a mensagem!");
 
-	nread = read(socket_fd, buffer, BUFFER_SIZE);
+	nread = read(server_fd, buffer, BUFFER_SIZE);
 	if(nread == -1)
 		error("não foi possível receber uma resposta do servidor!");
 
 	buffer[nread] = '\0';
 	printf("%s\n\n", buffer);
 
-	close(socket_fd);
+	close(server_fd);
+
+	for (int i = 0; i < subbed_topics_count; i++)
+	{
+		if (setsockopt(subbed_topics[i].socket_fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &subbed_topics[i].mreq, sizeof(subbed_topics[i].mreq)) < 0)
+			error("não foi possível sair de um grupo multicast!");
+
+		close(subbed_topics[i].socket_fd);
+	}
 	
 	_exit(EXIT_SUCCESS);
 }
 
-void session_manager(int server_fd)
+void session_manager()
 {
-    while (!send_message(server_fd)) // lê a mensagem a enviar para o servidor e verifica se é um pedido de saída ou não
+	int procedure = 1;
+    while (procedure > 0) // lê a mensagem a enviar para o servidor e verifica se é um pedido de saída ou não
 	{
-		if(send(server_fd, NULL, 0, MSG_NOSIGNAL) != -1) // verificar se a socket está aberta / a receber mensagens
-        	receive_answer(server_fd);
-		else
-			error("o servidor não respondeu, é possível que tenha sido desligado ou esta sessão tenha expirado!");
+		procedure = send_message();
+
+		if(procedure == 1)
+		{
+			if(send(server_fd, NULL, 0, MSG_NOSIGNAL) != -1) // verificar se a socket está aberta / a receber mensagens
+				receive_answer(server_fd);
+			else
+				error("o servidor não respondeu, é possível que tenha sido desligado ou esta sessão tenha expirado!");
+		}
 	}
 }
 
-void receive_answer(int server_fd)
+void receive_answer()
 {
 	int nread;
 	char buffer[BUFFER_SIZE];
@@ -152,7 +168,7 @@ void receive_answer(int server_fd)
 		printf(">>> "); // o login foi completo, pedido de introduzir comandos genéricos
 }
 
-int send_message(int server_fd)
+int send_message()
 {
 	char input[BUFFER_SIZE];
 
@@ -168,19 +184,76 @@ int send_message(int server_fd)
 
 	if(!strcmp(token,"SUBSCRIBE_TOPIC"))
 	{
-		// int nread;
-		// char buffer[BUFFER_SIZE];
-		// nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
-		// if(nread == -1)
-		// 	error("não foi possível receber uma resposta do servidor!");
+		int nread;
+		char buffer[BUFFER_SIZE];
+		nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor aqui 
+		if(nread == -1)
+			error("não foi possível receber uma resposta do servidor!");
+		buffer[nread] = '\0';
 
-		// buffer[nread] = '\0';
-		// printf("%s\n\n", buffer);
+		if(!strcmp("Não existe nenhum tópico com este ID!", buffer))
+		{
+			printf("%s\n\n", buffer);
+			return 2;
+		}
+
+		int id = atoi(strtok(buffer, "#"));
+		for (int i = 0; i < subbed_topics_count; i++)
+		{
+			if (id == subbed_topics[i].id)
+			{
+				printf("Já está subscrito a este tópico!\n\n");
+				return 2;
+			}
+		}
+		char *title = strtok(NULL, "#");
+		char *ip = strtok(NULL, "#");
+		u_int16_t port = atoi(strtok(NULL, "#"));
+
+		printf("%d\n\n", id);
+		printf("%s\n\n", title);
+		printf("%s\n\n", ip);
+		printf("%d\n\n", port);
+
+
+		struct sockaddr_in addr;
+		int socket_fd;
+		struct ip_mreq mreq;
+
+		if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+			error("socket inválida!");
+
+		memset(&addr, 0, sizeof(addr));
+		addr.sin_family = AF_INET;
+		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_port = htons(port);
+
+		if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+			error("não possível fazer o bind UDP para um grupo multicast!");
+
+		mreq.imr_multiaddr.s_addr = inet_addr(ip);
+		mreq.imr_interface.s_addr = INADDR_ANY;
+		if (setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
+			error("não foi possível entrar num grupo multicast!");	
+
+		struct subbed_topic new_subbed_topic;
+		new_subbed_topic.id = id;
+		strcpy(new_subbed_topic.title, title);
+		new_subbed_topic.mreq = mreq;
+		new_subbed_topic.socket_fd = socket_fd;
+		new_subbed_topic.addr = addr;
+
+		subbed_topics[subbed_topics_count] = new_subbed_topic;
+		subbed_topics_count++;
+
+		printf("Subscrição efetuada com sucesso!\n\n");
+
+		return 2; // dizer ao gestor de sessão que não deve esperar por uma resposta do servidor pois nós tratamos aqui
 	}
+	else if(!strcmp(token, "QUIT")) // devolve o pediddo de saída para quebrar o loop da sessão
+		return 0;
 
-	else if(!strcmp(token, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
-		return 1;
-
-	return 0;
+	return 1;
 }
 
+ 
