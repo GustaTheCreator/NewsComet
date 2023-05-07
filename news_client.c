@@ -176,6 +176,8 @@ int send_message()
 	char input[BUFFER_SIZE];
 
 	fgets(input, BUFFER_SIZE, stdin);
+	if(input[0] != '\n')
+		strcpy(input, "invalid");
 	printf("\n\n");
 
 	input[strcspn(input, "\n")] = '\0';
