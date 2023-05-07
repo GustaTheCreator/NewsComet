@@ -323,7 +323,7 @@ int tcp_login(char client_ip[], int client_fd)
 							sprintf(menu, 	"Login efetuado com sucesso!\n\n"
 											"Comandos disponíveis:\n"
 											"- QUIT						Termina esta sessão TCP\n"
-											"- READ_NEWS					Lê as notícias recebidas nos tópicos subescritos\n"
+											"- READ_NEWS					Lê as notícias recebidas nos tópicos subscritos\n"
 											"- LIST_TOPICS					Lista todos os tópicos disponíveis\n"
 											"- SUBSCRIBE_TOPIC [topic_id]			Subscreve a um tópico");
 							if (atoi(token) > 0) // adiciona ao menu os comandos extras a que o jornaista/admin tem acesso
