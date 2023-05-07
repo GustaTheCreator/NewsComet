@@ -20,10 +20,26 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define CONFIG_PORT 9876 // UDP (Usar com netcat --> nc -u 127.0.0.1 9876)
+#define CONFIG_PORT 8999 // UDP (Usar com news_admin --> ./news_admin localhost 8999)
 #define NEWS_PORT 9000 // TCP (Usar com news_client --> ./news_client localhost 9000)
+#define MULTICAST_START_PORT 9001
+#define MULTICAST_START_ADDR "224.0.0.1"
 #define BUFFER_SIZE 1024 // limite de uma mensagem
 #define MAX_ADMINS 5 // maximo de admins com sessões udp abertas neste instância do servidor
+#define MAX_TOPICS 200 // maximo de tópicos
+
+struct topic
+{
+	int id;
+	char title[BUFFER_SIZE/2];
+	char ip[INET_ADDRSTRLEN];
+	int port;
+	struct sockaddr_in addr;
+	int socket_fd;
+};
+
+struct topic topics[MAX_TOPICS]; // array de tópicos
+int topics_count = 0; // numero de tópicos
 
 void tcp_boot();
 void udp_boot();
@@ -31,14 +47,14 @@ void error(char *msg);
 void tcp_session_manager(char client_ip[], int client_fd);
 int tcp_login(char client_ip[], int client_fd);
 int tcp_receive_message(int client_perms, char client_ip[], int client_fd);
-void tcp_process_answer(char *message, int client_perms, int client_fd);
-void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int tcp_socket, struct sockaddr *si_outra, socklen_t *slen);
-int udp_login(char client_ip[] ,char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen);
-void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen);
+void tcp_process_answer(char *buffer, int client_perms, int client_fd);
+void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int socket_fd, struct sockaddr *client_addr, socklen_t *slen);
+int udp_login(char client_ip[] ,char logged_admins[][INET_ADDRSTRLEN], char buffer[], int socket_fd, struct sockaddr *client_addr, socklen_t slen);
+void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int socket_fd, struct sockaddr *client_addr, socklen_t slen);
 
 int main()
 {
-	printf("\n");
+	printf("\n\n");
 	printf("A iniciar o servidor de notícias...\n\n");
 	fflush(stdout);
 
@@ -108,6 +124,10 @@ void tcp_boot()
 
 	if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 		error("ao criar o socket TCP!");
+	
+	int enabled = 1;
+	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled)) < 0)
+		error("a marcar a socket TCP como reutilizável!");
 
 	if (bind(socket_fd,(struct sockaddr*)&addr,sizeof(addr)) < 0)
 		error("no bind TCP!");
@@ -138,19 +158,23 @@ void tcp_boot()
 
 void udp_boot()
 {
-	struct sockaddr_in si_minha, si_outra;
+	struct sockaddr_in addr, client_addr;
 
-	int tcp_socket;
-	socklen_t slen = sizeof(si_outra);
+	int socket_fd;
+	socklen_t slen = sizeof(client_addr);
 
-	if ((tcp_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) // cria um socket para recepção de pacotes UDP
+	if ((socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) // cria um socket para recepção de pacotes UDP
 		error("ao criar o socket UDP!");
 
-	si_minha.sin_family = AF_INET; // preenchimento da socket address structure
-	si_minha.sin_port = htons(CONFIG_PORT);
-	si_minha.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_family = AF_INET; // preenchimento da socket address structure
+	addr.sin_port = htons(CONFIG_PORT);
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	if (bind(tcp_socket,(struct sockaddr*)&si_minha, sizeof(si_minha)) == -1) // associa o socket à informação de endereço
+	int enabled = 1;
+	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled)) < 0)
+		error("a marcar a socket UDP como reutilizável!");
+
+	if (bind(socket_fd,(struct sockaddr*)&addr, sizeof(addr)) == -1) // associa o socket à informação de endereço
 		error("no bind UDP!");
 
 	char logged_admins[MAX_ADMINS][INET_ADDRSTRLEN];
@@ -159,7 +183,7 @@ void udp_boot()
 	
 	while (1)
 	{
-    	udp_receive_message(logged_admins, tcp_socket, (struct sockaddr *)&si_outra, (socklen_t *)&slen); // espera até receber uma mensagem
+    	udp_receive_message(logged_admins, socket_fd, (struct sockaddr *)&client_addr, (socklen_t *)&slen); // espera até receber uma mensagem
 	}
 }
 
@@ -266,7 +290,7 @@ int tcp_login(char client_ip[], int client_fd)
 											"- QUIT						Termina esta sessão TCP\n"
 											"- LIST_TOPICS					Lista todos os tópicos disponíveis\n"
 											"- SUBSCRIBE_TOPIC [topic_id]			Subscreve a um tópico");
-							if (atoi(token) == 1) // adiciona ao menu os comandos extras a que o jornaista tem acesso
+							if (atoi(token) > 0) // adiciona ao menu os comandos extras a que o jornaista/admin tem acesso
 								strcat(menu,"\n- CREATE_TOPIC [topic_id] [topic_title]		Cria um tópico\n"
 											"- SEND_NEWS [topic_id] [news_text]		Envia uma notícia para os subscritores de um tópico");
 							write(client_fd, menu, strlen(menu));
@@ -312,37 +336,176 @@ int tcp_receive_message(int client_perms, char client_ip[], int client_fd)
 		return 0;
 }
 
-void tcp_process_answer(char *message, int client_perms, int client_fd)
+void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 {
 	char answer[BUFFER_SIZE];
 
-	if (!strcasecmp(message, "LIST_TOPICS")) 
+	char *token = strtok(buffer, " "); // separa a mensagem recebida em tokens
+
+	if (!strcasecmp(token, "LIST_TOPICS")) 
 	{
-		sprintf(answer, "1");
+		if (topics_count == 0)
+		{
+			sprintf(answer, "Ainda não existem tópicos publicados!");
+		}
+		else
+		{
+			sprintf(answer, "Tópicos disponíveis:\n\n");
+			char topic[BUFFER_SIZE];
+			for (int i = 0; i < topics_count; i++)
+			{
+				sprintf(topic, "%s | ID: %d\n", topics[i].title, topics[i].id);
+				strcat(answer, topic);
+			}
+		}
 	}
-	else if (!strcasecmp(message, "SUBSCRIBE_TOPIC"))
+	else if (!strcasecmp(token, "SUBSCRIBE_TOPIC"))
 	{
-		sprintf(answer, "2");
+		char *id = strtok(NULL, " ");
+		if (id == NULL)
+			sprintf(answer, "Argumento inválido!");
+		else
+		{
+			int found = 0;
+			for (int i = 0; i < topics_count; i++)
+			{
+				if (atoi(id) == topics[i].id)
+				{
+					found = 1;
+					sprintf(answer, "%s#%d",topics[i].ip, topics[i].port);
+					write(client_fd, answer, strlen(answer));
+				}
+			}
+			if (!found)
+				sprintf(answer, "Não existe nenhum tópico com este ID!");
+			else
+				sprintf(answer, "Subscrição efetuada com sucesso!");
+		}
 	}
-	else if (!strcasecmp(message, "CREATE_TOPIC"))
+	else if (!strcasecmp(token, "CREATE_TOPIC"))
 	{
+		char *id = strtok(NULL, " ");
+		char *title_part = strtok(NULL, " ");
+
 		if (client_perms < 1)
+			sprintf(answer, "Não tem permissões para usar este comando!");
+		else if (id == NULL || title_part == NULL)
+			sprintf(answer, "Argumentos inválidos!");
+		else if (atoi(id) < 1)
+			sprintf(answer, "O ID do tópico tem de ser um número inteiro positivo!");
+		else
+		{
+			char title[BUFFER_SIZE];
+
+			strcpy(title, title_part);
+			while (title_part != NULL)
+			{
+				title_part = strtok(NULL, "");
+				if (title_part != NULL)
+				{
+					strcat(title, " ");
+					strcat(title, title_part);
+				}
+			}
+
+			int valid = 1;
+			for (int i = 0; i < topics_count; i++)
+			{
+				if (atoi(id) == topics[i].id)
+				{
+					sprintf(answer, "Já existe um tópico com este ID!");
+					valid = 0;
+				}
+				if (!strcmp(title, topics[i].title))
+				{
+					sprintf(answer, "Já existe um tópico com este título!");
+					valid = 0;
+				}	
+			}
+			if(valid)
+			{
+				struct topic new_topic;
+				new_topic.id = atoi(id);
+				strcpy(new_topic.title, title);
+				new_topic.port = MULTICAST_START_PORT + topics_count;
+
+				char copy[INET_ADDRSTRLEN];
+				int octets[4];
+				strcpy(copy, MULTICAST_START_ADDR);	
+				char *octet = strtok(copy, ".");
+				for (int i = 0; i < 4; i++)
+				{ 
+					octets[i] = atoi(octet);
+					octet = strtok(NULL, ".");
+				}
+				octets[3] += topics_count;
+				sprintf(new_topic.ip, "%d.%d.%d.%d", octets[0], octets[1], octets[2], octets[3]);
+
+				struct sockaddr_in addr;
+				int socket_fd;
+
+				if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) 
+					error("na criação da socket para multicast!");
+				memset(&addr, 0, sizeof(addr));
+				addr.sin_family = AF_INET;
+				addr.sin_addr.s_addr = inet_addr(new_topic.ip);
+				addr.sin_port = htons(new_topic.port);
+				int enable = 1;
+				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
+					error("na ativação do multicast na socket!");
+
+				new_topic.socket_fd = socket_fd;
+				new_topic.addr = addr;
+				topics[topics_count] = new_topic;
+
+				topics_count++;
+
+				sprintf(answer, "Tópico criado com sucesso!");
+			}
+		}
+	}
+	else if (!strcasecmp(token, "SEND_NEWS"))
+	{
+		char *id = strtok(NULL, " ");
+		char *text_part = strtok(NULL, " ");
+
+		if (id == NULL || token == NULL)
+			sprintf(answer, "Argumentos inválidos!");
+		else if (client_perms < 1)
 			sprintf(answer, "Não tem permissões para usar este comando!");
 		else
 		{
-			sprintf(answer, "3");
+			int found = 0;
+			for (int i = 0; i < topics_count; i++)
+			{
+				if (atoi(id) == topics[i].id)
+				{
+					found = 1;
+
+					char text[BUFFER_SIZE];
+
+					strcpy(text, text_part);
+					while (text_part != NULL)
+					{
+						text_part = strtok(NULL, "");
+						if (text_part != NULL)
+						{
+							strcat(text, " ");
+							strcat(text, text_part);
+						}
+					}
+
+					if (sendto(topics[i].socket_fd, text, strlen(text), 0, (struct sockaddr *) &topics[i].addr, sizeof(topics[i].addr)) < 0)
+						error("no envio de uma notícia para um tópico!");
+
+					sprintf(answer, "Notícia enviada com sucesso!");
+				}
+			}
+			if (!found)
+				sprintf(answer, "Não existe nenhum tópico com este ID!");
 		}
 	}
-	else if (!strcasecmp(message, "SEND_NEWS"))
-	{
-		if (client_perms < 1)
-			sprintf(answer, "Não tem permissões para usar este comando!");
-		else
-		{
-			sprintf(answer, "4");
-		}
-	}
-	else if (!strcasecmp(message, "QUIT")) // devolve a mensagem que acompanha o pedido de saida antes de voltar ao loop da sessao para o quebrar
+	else if (!strcasecmp(token, "QUIT")) // devolve a mensagem que acompanha o pedido de saida antes de voltar ao loop da sessao para o quebrar
 	{
 		sprintf(answer, "A sua sessão foi terminada com sucesso!");
 	}
@@ -354,33 +517,33 @@ void tcp_process_answer(char *message, int client_perms, int client_fd)
 	write(client_fd, answer, strlen(answer));
 }
 
-void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int tcp_socket, struct sockaddr *si_outra, socklen_t *slen)
+void udp_receive_message(char logged_admins[][INET_ADDRSTRLEN], int socket_fd, struct sockaddr *client_addr, socklen_t *slen)
 {
 	char buffer[BUFFER_SIZE];
 	int recv_len;
 
-	if ((recv_len = recvfrom(tcp_socket, buffer, BUFFER_SIZE, 0, si_outra, slen)) == -1) 
+	if ((recv_len = recvfrom(socket_fd, buffer, BUFFER_SIZE, 0, client_addr, slen)) == -1) 
 		error("no recvfrom UDP!");
 
 	buffer[recv_len]='\0'; // ignorar o restante conteúdo
 	buffer[strcspn(buffer, "\n")] = 0; // remover o \n do final da mensagem
-	struct sockaddr_in *sin = (struct sockaddr_in *)si_outra;
+	struct sockaddr_in *sin = (struct sockaddr_in *)client_addr;
 	char client_ip[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &(sin->sin_addr), client_ip, INET_ADDRSTRLEN); // obter o endereço IPV4 do client
 
 
-	if (!udp_login(client_ip, logged_admins, buffer, tcp_socket, si_outra, *slen)) // apenas avança para o processamento do comando se ja estiver logado
+	if (!udp_login(client_ip, logged_admins, buffer, socket_fd, client_addr, *slen)) // apenas avança para o processamento do comando se ja estiver logado
 	{																	 // se não estiver logado, vê se é uma tentativa de login e processa-a
 		if (!strcmp(buffer, "QUIT"))
 			printf("Login UDP pelo IP %s esquecido da memória!\n\n", client_ip);
 		else
 			printf("Comando UDP pelo IP %s recebido: %s\n\n", client_ip, buffer);
 		fflush(stdout);
-		udp_process_answer(client_ip, logged_admins, buffer, tcp_socket, si_outra, *slen);
+		udp_process_answer(client_ip, logged_admins, buffer, socket_fd, client_addr, *slen);
 	}
 }
 
-int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen)
+int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int socket_fd, struct sockaddr *client_addr, socklen_t slen)
 {
 
 	char answer[BUFFER_SIZE];
@@ -403,7 +566,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 											"- DEL_USER [username]				Apaga um utilizador do registo\n"
 											"- LIST_USERS					Lista todos os utilizadores registados\n"
 											"- QUIT_SERVER					Envia um pedido para encerrar ao servidor");
-				if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
+				if (sendto(socket_fd, answer, strlen(answer), 0, client_addr, slen) == -1) // enviar resposta ao cliente
 					error("no sendto UDP!");
 				return -1;
 			}
@@ -492,13 +655,13 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		sprintf(answer, "Por favor efetue primeiro o login como administrador para utilizar qualquer outro comando aqui!\n"
 						"Deve utilizar o seguinte comando: LOGIN [username] [password]");
 
-	if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta do erro ao cliente
+	if (sendto(socket_fd, answer, strlen(answer), 0, client_addr, slen) == -1) // enviar resposta do erro ao cliente
 		error("no sendto UDP!");
 
 	return -1;
 }
 
-void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int tcp_socket, struct sockaddr *si_outra, socklen_t slen)
+void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buffer[], int socket_fd, struct sockaddr *client_addr, socklen_t slen)
 {
 	char answer[BUFFER_SIZE];
 
@@ -629,7 +792,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 		sprintf(answer, "Comando inválido!");
 	}
 		
-	if (sendto(tcp_socket, answer, strlen(answer), 0, si_outra, slen) == -1) // enviar resposta ao cliente
+	if (sendto(socket_fd, answer, strlen(answer), 0, client_addr, slen) == -1) // enviar resposta ao cliente
 		error("no sendto UDP!");
 
 	if (!strcasecmp(token,"QUIT_SERVER")) // encerrar servidor se o cliente pediu
