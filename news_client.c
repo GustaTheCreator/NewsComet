@@ -15,8 +15,21 @@
 
 #define BUFFER_SIZE 1024
 #define h_addr h_addr_list[0] // para compatibilidade com várias versões da bibiloteca netdb.h
+#define MAX_TOPICS 200
+
+struct topic
+{
+	int id;
+	char title[BUFFER_SIZE/2];
+	char ip[INET_ADDRSTRLEN];
+	int port;
+	struct sockaddr_in addr;
+	int socket_fd;
+};
 
 int socket_fd;
+struct topic subbed_topics[MAX_TOPICS];
+int subbed_topics_count = 0;
 
 void error(char *msg);
 void sigint_handler();
@@ -26,7 +39,7 @@ void receive_answer(int server_fd);
 
 int main(int argc, char *argv[])
 {
-	printf("\n");
+	printf("\n\n");
 	
 	if (argc != 3)
 		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
@@ -93,7 +106,7 @@ void sigint_handler()
 
 	nread = read(socket_fd, buffer, BUFFER_SIZE);
 	if(nread == -1)
-		error("não foi possível receber a resposta do servidor!");
+		error("não foi possível receber uma resposta do servidor!");
 
 	buffer[nread] = '\0';
 	printf("%s\n\n", buffer);
@@ -110,7 +123,7 @@ void session_manager(int server_fd)
 		if(send(server_fd, NULL, 0, MSG_NOSIGNAL) != -1) // verificar se a socket está aberta / a receber mensagens
         	receive_answer(server_fd);
 		else
-			error("o servidor não respondeu, é possível que tenha sido desligado!");
+			error("o servidor não respondeu, é possível que tenha sido desligado ou esta sessão tenha expirado!");
 	}
 }
 
@@ -126,22 +139,17 @@ void receive_answer(int server_fd)
 	buffer[nread] = '\0';
 	printf("%s\n\n", buffer);
 
-	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || //varia a mensagem do que o utilizador deve introduzir
-	   !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
-	{
+	// varia a mensagem de pedido de introdução de dados consoante a mensagem recebida
+	if(!strcmp(buffer,"Este username não se encontra registado, tente novamente!") || !strcmp(buffer,"Bem-vindo! Por favor efetue o login com as suas crendenciais ou digite QUIT para terminar."))
 		printf("Username >>> "); // pedido de introduzir username
-	}
 	else if(!strcmp(buffer,"Password incorreta, tente novamente!") || !strcmp(buffer,"Username encontrado!"))
 		printf("Password >>> "); // pedido de introduzir password
-	else if(!strcmp(buffer,"Não foi possível processar as permissões desta conta, contacte um administrador!"))
-	{
-		printf("A sessão será terminada!\n\n");
+	else if(!strcmp(buffer,"Não foi possível processar as permissões desta conta, a sua sessão será terminada, contacte um administrador!"))
 		exit(-1); // recebeu uma mensagem de erro nesta conta, termina a sessão para forçar a iniciar noutra
-	}
 	else if(!strcmp(buffer,"A sua sessão foi terminada com sucesso!") || !strcmp(buffer,"Processo de login cancelado!"))
 		return;
 	else
-		printf(">>> "); // o login foi completo, pedido de introduzir comandos
+		printf(">>> "); // o login foi completo, pedido de introduzir comandos genéricos
 }
 
 int send_message(int server_fd)
@@ -155,9 +163,24 @@ int send_message(int server_fd)
 
 	if(write(server_fd, input, strlen(input)) == -1)
 		error("não foi possível enviar a mensagem!");
-	if(!strcmp(input, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
+	
+	char *token = strtok(input, " ");
+
+	if(!strcmp(token,"SUBSCRIBE_TOPIC"))
+	{
+		// int nread;
+		// char buffer[BUFFER_SIZE];
+		// nread = read(server_fd, buffer, BUFFER_SIZE); // recebe a resposta do servidor e faz o output da mesma
+		// if(nread == -1)
+		// 	error("não foi possível receber uma resposta do servidor!");
+
+		// buffer[nread] = '\0';
+		// printf("%s\n\n", buffer);
+	}
+
+	else if(!strcmp(token, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 		return 1;
-	else
-		return 0;
+
+	return 0;
 }
 
