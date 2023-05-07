@@ -19,7 +19,7 @@ void receive_answer(int socket_fd, struct sockaddr *addr, socklen_t slen);
 
 int main(int argc, char *argv[]) 
 {
-    printf("\n");
+    printf("\n\n");
     
 	if (argc != 3)
 		error("deve utilizar os seguintes argumentos: [server_ip] [port]");
