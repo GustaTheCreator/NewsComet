@@ -90,6 +90,8 @@ int send_message(int socket_fd, struct sockaddr *addr, socklen_t slen)
 
     printf(">>> ");
 	fgets(input, BUFFER_SIZE, stdin);
+    if(input[0] != '\n')
+		strcpy(input, "invalid");
     printf("\n\n");
 
 	input[strcspn(input, "\n")] = '\0';
