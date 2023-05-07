@@ -38,8 +38,8 @@ struct topic
 	int socket_fd;
 };
 
-struct topic topics[MAX_TOPICS]; // array de tópicos
-int topics_count = 0; // numero de tópicos
+struct topic topics[MAX_TOPICS]; 
+int topics_count = 0;
 
 void tcp_boot();
 void udp_boot();
@@ -277,7 +277,7 @@ int tcp_login(char client_ip[], int client_fd)
 							token = strtok(NULL, ","); // verifica se o valor da permissão é válido
 							if ((strcmp(token,"0") && atoi(token) == 0) || atoi(token) > 2 || atoi(token) < 0)
 							{
-								write(client_fd, "Não foi possível processar as permissões desta conta, contacte um administrador!", 85);
+								write(client_fd, "Não foi possível processar as permissões desta conta, a sua sessão será terminada, contacte um administrador!", 109); 
 								fclose(file);
 								if (sem_post(users_file_sem) == -1)
 									error("no post do semáforo para o ficheiro de utilizadores!");
@@ -372,14 +372,11 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				if (atoi(id) == topics[i].id)
 				{
 					found = 1;
-					sprintf(answer, "%s#%d",topics[i].ip, topics[i].port);
-					write(client_fd, answer, strlen(answer));
+					sprintf(answer, "#%s#%s#%d#Subscrição efetuada com sucesso!",topics[i].title, topics[i].ip, topics[i].port);
 				}
 			}
 			if (!found)
 				sprintf(answer, "Não existe nenhum tópico com este ID!");
-			else
-				sprintf(answer, "Subscrição efetuada com sucesso!");
 		}
 	}
 	else if (!strcasecmp(token, "CREATE_TOPIC"))
