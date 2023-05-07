@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>      
 #include <netdb.h>
 #include <signal.h>
 
@@ -140,6 +141,8 @@ void session_manager()
 			else
 				error("o servidor não respondeu, é possível que tenha sido desligado ou esta sessão tenha expirado!");
 		}
+		else if(procedure == 2)
+			printf(">>> ");
 	}
 }
 
@@ -182,7 +185,49 @@ int send_message()
 	
 	char *token = strtok(input, " ");
 
-	if(!strcmp(token,"SUBSCRIBE_TOPIC"))
+	if(!strcmp(token,"READ_NEWS"))
+	{
+		token = strtok(NULL, " ");
+		if (token == NULL) // chamar o comando sem argumentos mostra os tópicos a que está subscrito e pode ler notícias
+		{
+			if(subbed_topics_count == 0)
+			{
+				printf("Não está subscrito a nenhum tópico!\n\n");
+				return 2;
+			}
+			printf("Tópicos a que subscreveu:\n\n");
+			for (int i = 0; i < subbed_topics_count; i++)
+			{
+				printf("%s | ID: %d\n\n", subbed_topics[i].title, subbed_topics[i].id);
+			}
+			printf("Para ler as notícias que recebeu sobre um determinado tópico utilize: READ_NEWS [topic_id]\n\n");
+			return 2;	
+		}
+		int topic_id = atoi(token);
+		for (int i = 0; i < subbed_topics_count; i++)
+		{
+			if (topic_id == subbed_topics[i].id)
+			{
+				char buffer[BUFFER_SIZE];
+				int nbytes = recvfrom(subbed_topics[i].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[i].addr, (socklen_t *)sizeof(subbed_topics[i].addr));
+				int news_count = 0;
+				if(nbytes >= 0)
+				{
+					printf("Notícias recebidas sobre %s:\n\n", subbed_topics[i].title);
+					while(nbytes >= 0)
+					{
+						news_count++;
+						printf("%d - %s\n\n", news_count, buffer);
+						nbytes = recvfrom(subbed_topics[i].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[i].addr, (socklen_t *)sizeof(subbed_topics[i].addr));
+					}
+				}
+				else
+					printf("Ainda não recebeu noticías sobre este tópico!\n\n");
+				return 2;
+			}
+		}
+	}
+	else if(!strcmp(token,"SUBSCRIBE_TOPIC"))
 	{
 		int nread;
 		char buffer[BUFFER_SIZE];
@@ -210,12 +255,6 @@ int send_message()
 		char *ip = strtok(NULL, "#");
 		u_int16_t port = atoi(strtok(NULL, "#"));
 
-		printf("%d\n\n", id);
-		printf("%s\n\n", title);
-		printf("%s\n\n", ip);
-		printf("%d\n\n", port);
-
-
 		struct sockaddr_in addr;
 		int socket_fd;
 		struct ip_mreq mreq;
@@ -242,6 +281,10 @@ int send_message()
 		new_subbed_topic.mreq = mreq;
 		new_subbed_topic.socket_fd = socket_fd;
 		new_subbed_topic.addr = addr;
+
+		// definir a socket como não bloqueante para o comando de ler notícias
+		int flags = fcntl(new_subbed_topic.socket_fd, F_GETFL, 0);
+		fcntl(new_subbed_topic.socket_fd, F_SETFL, flags | O_NONBLOCK);
 
 		subbed_topics[subbed_topics_count] = new_subbed_topic;
 		subbed_topics_count++;
