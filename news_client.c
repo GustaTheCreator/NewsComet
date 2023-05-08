@@ -213,21 +213,20 @@ int send_message()
 			{
 				char buffer[BUFFER_SIZE];
 				int nread;
+				char news_time[BUFFER_SIZE];
+				time_t now;
 				socklen_t slen = sizeof(subbed_topics[i].addr);
 
 				printf("A aguardar notícias sobre %s:\n\n", subbed_topics[i].title);
-
-								char news_time[BUFFER_SIZE];
-				time_t now = time (0);
-				strftime (news_time, 100, "%Y-%m-%d %H:%M:%S.000", localtime(&now));
-				news_time[strlen(news_time)-7] = '\0';
-
-				printf("%s - %s\n\n", news_time, "GOLO BENFICA!");
 				
 				if((nread = recvfrom(subbed_topics[i].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[i].addr, (socklen_t *)&slen)) == -1)
 					error("o servidor não respondeu, é possível que tenha sido desligado!");
 
-	
+				now = time (0);
+				strftime (news_time, BUFFER_SIZE, "%Y-%m-%d %H:%M:%S.000", localtime(&now));
+				news_time[strlen(news_time)-7] = '\0';
+
+				printf("%s - %s\n\n", news_time, buffer);
 
 				return 2;
 			}
