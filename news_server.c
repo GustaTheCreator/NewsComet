@@ -490,6 +490,8 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				int enable = 1;
 				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
 					error("na ativação do multicast na socket!");
+				if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(&enable)) < 0) 
+					error("a definir a socket de multicast como reutilizável!");
 
 				new_topic.socket_fd = socket_fd;
 				new_topic.addr = addr;
