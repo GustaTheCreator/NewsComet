@@ -536,8 +536,8 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 
 					if (sendto(topics[i].socket_fd, text, strlen(text), 0, (struct sockaddr *) &topics[i].addr, sizeof(topics[i].addr)) < 0)
 						error("no envio de uma notícia para um tópico!");
-
-					sprintf(answer, "Notícia enviada com sucesso!");
+					else
+						sprintf(answer, "Notícia enviada com sucesso!");
 				}
 			}
 			if (!found)
