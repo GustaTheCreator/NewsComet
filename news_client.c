@@ -268,7 +268,7 @@ int send_message()
 
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = _ANY;
+		addr.sin_addr.s_addr = INADDR_ANY;
 		addr.sin_port = htons(port);
 
 		if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
