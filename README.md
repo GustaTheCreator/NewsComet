@@ -68,5 +68,5 @@
     ./news_admin.exe <ip> 9876
     ```
 
-* Replace `<ip>` with the IP address of the device running the `news_server.exe` or use `127.0.0.1` if testing locally
+* Replace `<ip>` with the IP address of the device running the `news_server.exe` or use `localhost` if testing locally
 
