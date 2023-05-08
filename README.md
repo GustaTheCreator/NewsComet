@@ -63,9 +63,9 @@
     ./news_client.exe <ip> 9000
     ```
 
-  * Start one or more `news_config.exe` to access and modify admin settings
+  * Start one or more `news_admin.exe` to access and modify admin settings
     ```
-    ./news_config.exe <ip> 9876
+    ./news_admin.exe <ip> 9876
     ```
 
 * Replace `<ip>` with the IP address of the device running the `news_server.exe` or use `127.0.0.1` if testing locally
