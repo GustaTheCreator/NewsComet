@@ -176,8 +176,8 @@ int send_message()
 	char input[BUFFER_SIZE];
 
 	fgets(input, BUFFER_SIZE, stdin);
-	if(input[0] != '\n')
-		strcpy(input, "invalid");
+    if(input[0] == '\n')
+		strcpy(input, "invalid\n");
 	printf("\n\n");
 
 	input[strcspn(input, "\n")] = '\0';
@@ -194,7 +194,7 @@ int send_message()
 		{
 			if(subbed_topics_count == 0)
 			{
-				printf("Não está subscrito a nenhum tópico!\n\n");
+				printf("Não está subscrito a nenhum tópico, subscreva primeiro a um tópico para poder ler as notícias recebidas sobre o mesmo!\n\n");
 				return 2;
 			}
 			printf("Tópicos a que subscreveu:\n\n");
@@ -228,6 +228,8 @@ int send_message()
 				return 2;
 			}
 		}
+		printf("Não está subscrito a este tópico!\n\n");
+		return 2;
 	}
 	else if(!strcmp(token,"SUBSCRIBE_TOPIC"))
 	{
@@ -266,7 +268,7 @@ int send_message()
 
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_addr.s_addr = _ANY;
 		addr.sin_port = htons(port);
 
 		if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)

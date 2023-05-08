@@ -483,6 +483,10 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				addr.sin_family = AF_INET;
 				addr.sin_addr.s_addr = inet_addr(new_topic.ip);
 				addr.sin_port = htons(new_topic.port);
+
+				int disable = 0;
+				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &disable, sizeof(disable)) < 0)
+					error("na desativação do loop de multicast na socket!");
 				int enable = 1;
 				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
 					error("na ativação do multicast na socket!");
@@ -502,7 +506,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 		char *id = strtok(NULL, " ");
 		char *text_part = strtok(NULL, " ");
 
-		if (id == NULL || token == NULL)
+		if (id == NULL || text_part == NULL)
 			sprintf(answer, "Argumentos inválidos!");
 		else if (client_perms < 1)
 			sprintf(answer, "Não tem permissões para usar este comando!");
