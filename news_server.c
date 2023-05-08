@@ -250,7 +250,7 @@ void tcp_session_manager(char client_ip[], int client_fd)
 	fflush(stdout);
 
 	close(client_fd);
-	close(user_sem);
+	sem_close(user_sem);
 	exit(EXIT_SUCCESS);
 }
 
