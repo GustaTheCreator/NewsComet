@@ -14,6 +14,7 @@
 #include <fcntl.h>      
 #include <netdb.h>
 #include <signal.h>
+#include <time.h>
 
 #define BUFFER_SIZE 1024
 #define h_addr h_addr_list[0] // para compatibilidade com várias versões da bibiloteca netdb.h
@@ -211,20 +212,23 @@ int send_message()
 			if (topic_id == subbed_topics[i].id)
 			{
 				char buffer[BUFFER_SIZE];
-				int nbytes = recvfrom(subbed_topics[i].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[i].addr, (socklen_t *)sizeof(subbed_topics[i].addr));
-				int news_count = 0;
-				if(nbytes >= 0)
-				{
-					printf("Notícias recebidas sobre %s:\n\n", subbed_topics[i].title);
-					while(nbytes >= 0)
-					{
-						news_count++;
-						printf("%d - %s\n\n", news_count, buffer);
-						nbytes = recvfrom(subbed_topics[i].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[i].addr, (socklen_t *)sizeof(subbed_topics[i].addr));
-					}
-				}
-				else
-					printf("Ainda não recebeu noticías sobre este tópico!\n\n");
+				int nread;
+				socklen_t slen = sizeof(subbed_topics[i].addr);
+
+				printf("A aguardar notícias sobre %s:\n\n", subbed_topics[i].title);
+
+								char news_time[BUFFER_SIZE];
+				time_t now = time (0);
+				strftime (news_time, 100, "%Y-%m-%d %H:%M:%S.000", localtime(&now));
+				news_time[strlen(news_time)-7] = '\0';
+
+				printf("%s - %s\n\n", news_time, "GOLO BENFICA!");
+				
+				if((nread = recvfrom(subbed_topics[i].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[i].addr, (socklen_t *)&slen)) == -1)
+					error("o servidor não respondeu, é possível que tenha sido desligado!");
+
+	
+
 				return 2;
 			}
 		}
@@ -283,17 +287,12 @@ int send_message()
 		if (setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
 			error("não foi possível entrar num grupo multicast!");	
 		
-
 		struct subbed_topic new_subbed_topic;
 		new_subbed_topic.id = id;
 		strcpy(new_subbed_topic.title, title);
 		new_subbed_topic.mreq = mreq;
 		new_subbed_topic.socket_fd = socket_fd;
 		new_subbed_topic.addr = addr;
-
-		// definir a socket como não bloqueante para o comando de ler notícias
-		int flags = fcntl(new_subbed_topic.socket_fd, F_GETFL, 0);
-		fcntl(new_subbed_topic.socket_fd, F_SETFL, flags | O_NONBLOCK);
 
 		subbed_topics[subbed_topics_count] = new_subbed_topic;
 		subbed_topics_count++;
