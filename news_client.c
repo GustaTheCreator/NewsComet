@@ -271,6 +271,10 @@ int send_message()
 		addr.sin_addr.s_addr = INADDR_ANY;
 		addr.sin_port = htons(port);
 
+		int enable = 1;
+		if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(&enable)) < 0) 
+			error("a definir a socket de multicast como reutilizável!");
+
 		if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
 			error("não possível fazer o bind UDP para um grupo multicast!");
 
@@ -278,6 +282,7 @@ int send_message()
 		mreq.imr_interface.s_addr = INADDR_ANY;
 		if (setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
 			error("não foi possível entrar num grupo multicast!");	
+		
 
 		struct subbed_topic new_subbed_topic;
 		new_subbed_topic.id = id;
