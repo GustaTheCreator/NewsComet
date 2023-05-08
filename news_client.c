@@ -187,7 +187,7 @@ int send_message()
 	
 	char *token = strtok(input, " ");
 
-	if(!strcmp(token,"READ_NEWS"))
+	if(!strcasecmp(token,"READ_NEWS"))
 	{
 		token = strtok(NULL, " ");
 		if (token == NULL) // chamar o comando sem argumentos mostra os tópicos a que está subscrito e pode ler notícias
@@ -231,7 +231,7 @@ int send_message()
 		printf("Não está subscrito a este tópico!\n\n");
 		return 2;
 	}
-	else if(!strcmp(token,"SUBSCRIBE_TOPIC"))
+	else if(!strcasecmp(token,"SUBSCRIBE_TOPIC"))
 	{
 		int nread;
 		char buffer[BUFFER_SIZE];
