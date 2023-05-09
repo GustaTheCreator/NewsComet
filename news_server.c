@@ -403,7 +403,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 	else if (!strcasecmp(token, "SUBSCRIBE_TOPIC"))
 	{
 		char *id = strtok(NULL, " ");
-		if (id == NULL)
+		if (id == NULL || atoi(id) == 0)
 			sprintf(answer, "Argumento inválido!");
 		else
 		{
@@ -504,7 +504,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				int disable = 0;
 				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &disable, sizeof(disable)) < 0)
 					error("na desativação do loop de multicast na socket!");
-				int enable = 1;
+				int enable = 255;
 				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
 					error("na ativação do multicast na socket!");
 
