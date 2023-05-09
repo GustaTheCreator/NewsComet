@@ -431,7 +431,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 
 		if (client_perms < 1)
 			sprintf(answer, "Não tem permissões para usar este comando!");
-		else if (id == NULL || title_part == NULL)
+		else if (id == NULL || atoi(id) == 0 || title_part == NULL)
 			sprintf(answer, "Argumentos inválidos!");
 		else if (atoi(id) < 1)
 			sprintf(answer, "O ID do tópico tem de ser um número inteiro positivo!");
@@ -526,7 +526,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 		char *id = strtok(NULL, " ");
 		char *text_part = strtok(NULL, " ");
 
-		if (id == NULL || text_part == NULL)
+		if (id == NULL || atoi(id) == 0 || text_part == NULL)
 			sprintf(answer, "Argumentos inválidos!");
 		else if (client_perms < 1)
 			sprintf(answer, "Não tem permissões para usar este comando!");
