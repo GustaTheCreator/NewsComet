@@ -271,7 +271,7 @@ int send_message()
 
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = INADDR_ANY;
+		addr.sin_addr.s_addr = htonl(INADDR_ANY);
 		addr.sin_port = htons(port);
 
 		int enable = 1;
@@ -282,7 +282,7 @@ int send_message()
 			error("não possível fazer o bind UDP para um grupo multicast!");
 
 		mreq.imr_multiaddr.s_addr = inet_addr(ip);
-		mreq.imr_interface.s_addr = INADDR_ANY;
+		mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 		if (setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
 			error("não foi possível entrar num grupo multicast!");	
 		
