@@ -491,25 +491,20 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				octets[3] += *topics_count;
 				sprintf(new_topic.ip, "%d.%d.%d.%d", octets[0], octets[1], octets[2], octets[3]);
 
-				struct sockaddr_in addr;
-				int socket_fd;
-
-				if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) 
+				if ((new_topic.socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) 
 					error("na criação da socket para multicast!");
-				memset(&addr, 0, sizeof(addr));
-				addr.sin_family = AF_INET;
-				addr.sin_addr.s_addr = inet_addr(new_topic.ip);
-				addr.sin_port = htons(new_topic.port);
+				memset(&new_topic.addr, 0, sizeof(new_topic.addr));
+				new_topic.addr.sin_family = AF_INET;
+				new_topic.addr.sin_addr.s_addr = inet_addr(new_topic.ip);
+				new_topic.addr.sin_port = htons(new_topic.port);
 
 				int disable = 0;
-				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &disable, sizeof(disable)) < 0)
+				if (setsockopt(new_topic.socket_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &disable, sizeof(disable)) < 0)
 					error("na desativação do loop de multicast na socket!");
 				int enable = 255;
-				if (setsockopt(socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
+				if (setsockopt(new_topic.socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
 					error("na ativação do multicast na socket!");
 
-				new_topic.socket_fd = socket_fd;
-				new_topic.addr = addr;
 				topics[*topics_count] = new_topic;
 
 				*topics_count = *topics_count + 1;

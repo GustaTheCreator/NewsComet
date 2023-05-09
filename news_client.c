@@ -249,49 +249,42 @@ int send_message()
 			return 2;
 		}
 
-		int id = atoi(strtok(buffer, "#"));
+		struct subbed_topic new_subbed_topic;
+
+		new_subbed_topic.id = atoi(strtok(buffer, "#"));
 		for (int i = 0; i < subbed_topics_count; i++)
 		{
-			if (id == subbed_topics[i].id)
+			if (new_subbed_topic.id == subbed_topics[i].id)
 			{
 				printf("Já está subscrito a este tópico!\n\n");
 				return 2;
 			}
 		}
 		char *title = strtok(NULL, "#");
+		strcpy(new_subbed_topic.title, title);
 		char *ip = strtok(NULL, "#");
-		u_int16_t port = atoi(strtok(NULL, "#"));
+		strcpy(new_subbed_topic.ip, ip);
+		new_subbed_topic.port = atoi(strtok(NULL, "#"));
 
-		struct sockaddr_in addr;
-		int socket_fd;
-		struct ip_mreq mreq;
-
-		if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+		if ((new_subbed_topic.socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 			error("socket inválida!");
 
-		memset(&addr, 0, sizeof(addr));
-		addr.sin_family = AF_INET;
-		addr.sin_addr.s_addr = htonl(INADDR_ANY);
-		addr.sin_port = htons(port);
+		memset(&new_subbed_topic.addr, 0, sizeof(new_subbed_topic.addr));
+		new_subbed_topic.addr.sin_family = AF_INET;
+		new_subbed_topic.addr.sin_addr.s_addr = htonl(INADDR_ANY);
+		new_subbed_topic.addr.sin_port = htons(new_subbed_topic.port);
 
 		int enable = 1;
-		if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(&enable)) < 0) 
+		if (setsockopt(new_subbed_topic.socket_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(&enable)) < 0) 
 			error("a definir a socket de multicast como reutilizável!");
 
-		if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+		if (bind(new_subbed_topic.socket_fd, (struct sockaddr *)&new_subbed_topic.addr, sizeof(new_subbed_topic.addr)) < 0)
 			error("não possível fazer o bind UDP para um grupo multicast!");
 
-		mreq.imr_multiaddr.s_addr = inet_addr(ip);
-		mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-		if (setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0)
+		new_subbed_topic.mreq.imr_multiaddr.s_addr = inet_addr(ip);
+		new_subbed_topic.mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+		if (setsockopt(new_subbed_topic.socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &new_subbed_topic.mreq, sizeof(new_subbed_topic.mreq)) < 0)
 			error("não foi possível entrar num grupo multicast!");	
-		
-		struct subbed_topic new_subbed_topic;
-		new_subbed_topic.id = id;
-		strcpy(new_subbed_topic.title, title);
-		new_subbed_topic.mreq = mreq;
-		new_subbed_topic.socket_fd = socket_fd;
-		new_subbed_topic.addr = addr;
 
 		subbed_topics[subbed_topics_count] = new_subbed_topic;
 		subbed_topics_count++;
