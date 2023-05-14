@@ -77,7 +77,7 @@ void receive_answer(int socket_fd, struct sockaddr *addr, socklen_t slen)
     char answer[BUFFER_SIZE];
     int nread;
     if((nread = recvfrom(socket_fd, answer, BUFFER_SIZE, 0, addr, &slen)) == -1)
-        error("o servidor não respondeu, é possível que tenha sido desligado!");
+        error("o servidor não respondeu, é possível que tenha sido desligado ou esta porta é inválida!");
 
     answer[nread]='\0'; // ignorar o restante conteúdo
 
