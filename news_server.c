@@ -31,6 +31,11 @@
 #define MAX_ADMINS 5 // maximo de admins com sessões udp abertas neste instância do servidor
 #define MAX_TOPICS 200 // maximo de tópicos
 
+struct shared_mem
+{
+	int topics_count;
+	struct topic *topics;
+};
 struct topic
 {
 	int id;
@@ -41,10 +46,8 @@ struct topic
 	int socket_fd;
 };
 
-int shmid_topics;
-int shmid_topics_count;
-struct topic *topics; 
-int *topics_count;
+int shmid;
+struct shared_mem *shared;
 sem_t *user_sem;
 
 void tcp_boot();
@@ -160,20 +163,15 @@ void tcp_boot()
     	error("a definir o handler para o sinal SIGINT!");
 	}
 
-	shmid_topics = shmget(SHM_KEY, MAX_TOPICS * sizeof(struct topic), IPC_CREAT | 0777);
-	if (shmid_topics < 0)
+	shmid = shmget(SHM_KEY, sizeof(struct shared_mem) + (sizeof(struct topic) * MAX_TOPICS), IPC_CREAT | 0777);
+	if (shmid == -1)
 		error("a criar a memória partilhada para os tópicos!");
-	shmid_topics_count = shmget(SHM_KEY + 1, sizeof(int), IPC_CREAT | 0777);
-	if (shmid_topics_count < 0)
-		error("a criar a memória partilhada para o contador de tópicos!");
-	topics = shmat(shmid_topics, NULL, 0);
-	if (topics == (void*)-1)
+	shared = shmat(shmid, NULL, 0);
+	if (shared == (void*)-1)
 		error("a dar attach à memória partilhada dos tópicos!");
-	topics_count = shmat(shmid_topics_count, NULL, 0);
-	if (topics_count == (void*)-1)
-		error("a dar attach à memória partilhada do contador de tópicos!");
 
-	*topics_count = 0;
+	shared->topics_count = 0;
+	shared->topics = (struct topic *) (shared + 1);
 
 	while (1)
 	{
@@ -381,24 +379,22 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 
 	if (!strcasecmp(token, "LIST_TOPICS")) 
 	{
-		if (*topics_count == 0)
+		sem_wait(user_sem);
+		if (shared->topics_count == 0)
 		{
 			sprintf(answer, "Ainda não existem tópicos publicados!");
 		}
 		else
 		{
-			if (sem_wait(user_sem) == -1)
-				error("no wait do semáforo para a memória partilhada!");
 			sprintf(answer, "Tópicos disponíveis para subscrição:\n");
 			char topic[BUFFER_SIZE];
-			for (int i = 0; i < *topics_count; i++)
+			for (int i = 0; i < shared->topics_count; i++)
 			{
-				sprintf(topic, "\n%s | ID: %d", topics[i].title, topics[i].id);
+				sprintf(topic, "\n%s | ID: %d", shared->topics[i].title, shared->topics[i].id);
 				strcat(answer, topic);
 			}
-			if (sem_post(user_sem) == -1)
-				error("no post do semáforo para a memória partilhada!");
 		}
+		sem_post(user_sem);
 	}
 	else if (!strcasecmp(token, "SUBSCRIBE_TOPIC"))
 	{
@@ -410,12 +406,12 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 			if (sem_wait(user_sem) == -1)
 				error("no wait do semáforo para a memória partilhada!");
 			int found = 0;
-			for (int i = 0; i < *topics_count; i++)
+			for (int i = 0; i < shared->topics_count; i++)
 			{
-				if (atoi(id) == topics[i].id)
+				if (atoi(id) == shared->topics[i].id)
 				{
 					found = 1;
-					sprintf(answer, "%d#%s#%s#%d", topics[i].id, topics[i].title, topics[i].ip, topics[i].port);
+					sprintf(answer, "%d#%s#%s#%d", shared->topics[i].id, shared->topics[i].title, shared->topics[i].ip, shared->topics[i].port);
 				}
 			}
 			if (sem_post(user_sem) == -1)
@@ -453,14 +449,14 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 			if (sem_wait(user_sem) == -1)
 				error("no wait do semáforo para a memória partilhada!");
 			int valid = 1;
-			for (int i = 0; i < *topics_count; i++)
+			for (int i = 0; i < shared->topics_count; i++)
 			{
-				if (atoi(id) == topics[i].id)
+				if (atoi(id) == shared->topics[i].id)
 				{
 					sprintf(answer, "Já existe um tópico com este ID!");
 					valid = 0;
 				}
-				if (!strcmp(title, topics[i].title))
+				if (!strcmp(title, shared->topics[i].title))
 				{
 					sprintf(answer, "Já existe um tópico com este título!");
 					valid = 0;
@@ -477,7 +473,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				struct topic new_topic;
 				new_topic.id = atoi(id);
 				strcpy(new_topic.title, title);
-				new_topic.port = MULTICAST_START_PORT + *topics_count;
+				new_topic.port = MULTICAST_START_PORT + shared->topics_count;
 
 				char copy[INET_ADDRSTRLEN];
 				int octets[4];
@@ -488,7 +484,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 					octets[i] = atoi(octet);
 					octet = strtok(NULL, ".");
 				}
-				octets[3] += *topics_count;
+				octets[3] += shared->topics_count;
 				sprintf(new_topic.ip, "%d.%d.%d.%d", octets[0], octets[1], octets[2], octets[3]);
 
 				if ((new_topic.socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) 
@@ -505,9 +501,9 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				if (setsockopt(new_topic.socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
 					error("na ativação do multicast na socket!");
 
-				topics[*topics_count] = new_topic;
+				shared->topics[shared->topics_count] = new_topic;
 
-				*topics_count = *topics_count + 1;
+				shared->topics_count = shared->topics_count + 1;
 
 				if (sem_post(user_sem) == -1)
 					error("no post do semáforo para a memória partilhada!");
@@ -530,9 +526,9 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 			if (sem_wait(user_sem) == -1)
 				error("no wait do semáforo para a memória partilhada!");
 			int found = 0;
-			for (int i = 0; i < *topics_count; i++)
+			for (int i = 0; i < shared->topics_count; i++)
 			{
-				if (atoi(id) == topics[i].id)
+				if (atoi(id) == shared->topics[i].id)
 				{
 					found = 1;
 
@@ -549,7 +545,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 						}
 					}
 
-					if (sendto(topics[i].socket_fd, text, strlen(text), 0, (struct sockaddr *) &topics[i].addr, sizeof(topics[i].addr)) < 0)
+					if (sendto(shared->topics[i].socket_fd, text, strlen(text), 0, (struct sockaddr *) &shared->topics[i].addr, sizeof(shared->topics[i].addr)) < 0)
 						error("no envio de uma notícia para um tópico!");
 					else
 						sprintf(answer, "Notícia enviada com sucesso!");
@@ -838,9 +834,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 
 void clean_shared()
 {
-	shmdt(topics);
-	shmdt(topics_count);
-	shmctl(shmid_topics, IPC_RMID, NULL);
-	shmctl(shmid_topics_count, IPC_RMID, NULL);
+	shmdt(shared);
+	shmctl(shmid, IPC_RMID, NULL);
 	_exit(EXIT_SUCCESS);
 }
