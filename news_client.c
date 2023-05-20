@@ -39,7 +39,6 @@ int server_fd;
 struct subbed_topic subbed_topics[MAX_TOPICS];
 int subbed_topics_count = 0;
 pthread_mutex_t subbed_topics_mutex = PTHREAD_MUTEX_INITIALIZER;
-int exiting = 0;
 
 void error(char *msg);
 void sigint_handler();
@@ -226,14 +225,17 @@ int send_message()
 				if (subbed_topics[i].received_news_count == 0)
 				{
 					printf("Ainda não recebeu nenhuma notícia sobre este tópico!\n\n");
-					pthread_mutex_unlock(&subbed_topics_mutex);
-					return 2;
 				}
-				printf("Notícias recebidas sobre o tópico %s:", subbed_topics[i].title);
-				for (int j = 0; j < subbed_topics[i].received_news_count; j++)
+				else
 				{
-					printf("\n\n%s", subbed_topics[i].news[j]);
+					printf("Notícias recebidas sobre %s:", subbed_topics[i].title);
+					for (int j = 0; j < subbed_topics[i].received_news_count; j++)
+					{
+						printf("\n\n%s", subbed_topics[i].news[j]);
+					}
 				}
+				pthread_mutex_unlock(&subbed_topics_mutex);
+				return 2;
 			}
 		}
 		printf("Não está subscrito a este tópico!\n\n");
@@ -328,11 +330,10 @@ void *receive_news(void *arg)
 	while(1)
 	{
 		if((nread = recvfrom(subbed_topics[topic_index].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[topic_index].addr, (socklen_t *)&slen)) == -1)
-			error("o servidor não respondeu, é possível que tenha sido desligado!");
+			error("o servidor não conseguiu enviar uma notícia!");
 
 		now = time (0);
-		strftime (news_time, 128, "%Y-%m-%d %H:%M:%S.000", localtime(&now));
-		news_time[strlen(news_time)-7] = '\0';
+		strftime (news_time, 128, "%Y-%m-%d %H:%M", localtime(&now));
 
 		char news[BUFFER_SIZE];
 		sprintf(news, "%s - %s", news_time, buffer);
