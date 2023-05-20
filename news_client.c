@@ -15,10 +15,12 @@
 #include <netdb.h>
 #include <signal.h>
 #include <time.h>
+#include <pthread.h>
 
 #define BUFFER_SIZE 1024
 #define h_addr h_addr_list[0] // para compatibilidade com várias versões da bibiloteca netdb.h
 #define MAX_TOPICS 200
+#define MAX_NEWS 200
 
 struct subbed_topic
 {
@@ -29,17 +31,22 @@ struct subbed_topic
 	struct sockaddr_in addr;
 	int socket_fd;
 	struct ip_mreq mreq;
+	int received_news_count;
+	char news[MAX_NEWS][BUFFER_SIZE];
 };
 
 int server_fd;
 struct subbed_topic subbed_topics[MAX_TOPICS];
 int subbed_topics_count = 0;
+pthread_mutex_t subbed_topics_mutex = PTHREAD_MUTEX_INITIALIZER;
+int exiting = 0;
 
 void error(char *msg);
 void sigint_handler();
 void session_manager();
 int send_message();
 void receive_answer();
+void *receive_news(void *arg);
 
 int main(int argc, char *argv[])
 {
@@ -193,9 +200,11 @@ int send_message()
 		token = strtok(NULL, " ");
 		if (token == NULL) // chamar o comando sem argumentos mostra os tópicos a que está subscrito e pode ler notícias
 		{
+			pthread_mutex_lock(&subbed_topics_mutex);
 			if(subbed_topics_count == 0)
 			{
 				printf("Não está subscrito a nenhum tópico, subscreva primeiro a um tópico para poder ler as notícias recebidas sobre o mesmo!\n\n");
+				pthread_mutex_unlock(&subbed_topics_mutex);
 				return 2;
 			}
 			printf("Tópicos a que subscreveu:\n\n");
@@ -204,34 +213,31 @@ int send_message()
 				printf("%s | ID: %d\n\n", subbed_topics[i].title, subbed_topics[i].id);
 			}
 			printf("Para ler as notícias que recebeu sobre um determinado tópico utilize: READ_NEWS [topic_id]\n\n");
+			pthread_mutex_unlock(&subbed_topics_mutex);
 			return 2;	
 		}
 		int topic_id = atoi(token);
+
+		pthread_mutex_lock(&subbed_topics_mutex);
 		for (int i = 0; i < subbed_topics_count; i++)
 		{
 			if (topic_id == subbed_topics[i].id)
 			{
-				char buffer[BUFFER_SIZE];
-				int nread;
-				char news_time[BUFFER_SIZE];
-				time_t now;
-				socklen_t slen = sizeof(subbed_topics[i].addr);
-
-				printf("A aguardar notícias sobre %s:\n\n", subbed_topics[i].title);
-				
-				if((nread = recvfrom(subbed_topics[i].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[i].addr, (socklen_t *)&slen)) == -1)
-					error("o servidor não respondeu, é possível que tenha sido desligado!");
-
-				now = time (0);
-				strftime (news_time, BUFFER_SIZE, "%Y-%m-%d %H:%M:%S.000", localtime(&now));
-				news_time[strlen(news_time)-7] = '\0';
-
-				printf("%s - %s\n\n", news_time, buffer);
-
-				return 2;
+				if (subbed_topics[i].received_news_count == 0)
+				{
+					printf("Ainda não recebeu nenhuma notícia sobre este tópico!\n\n");
+					pthread_mutex_unlock(&subbed_topics_mutex);
+					return 2;
+				}
+				printf("Notícias recebidas sobre o tópico %s:", subbed_topics[i].title);
+				for (int j = 0; j < subbed_topics[i].received_news_count; j++)
+				{
+					printf("\n\n%s", subbed_topics[i].news[j]);
+				}
 			}
 		}
 		printf("Não está subscrito a este tópico!\n\n");
+		pthread_mutex_unlock(&subbed_topics_mutex);
 		return 2;
 	}
 	else if(!strcasecmp(token,"SUBSCRIBE_TOPIC"))
@@ -284,10 +290,21 @@ int send_message()
 		new_subbed_topic.mreq.imr_multiaddr.s_addr = inet_addr(ip);
 		new_subbed_topic.mreq.imr_interface.s_addr = htonl(INADDR_ANY);
 		if (setsockopt(new_subbed_topic.socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &new_subbed_topic.mreq, sizeof(new_subbed_topic.mreq)) < 0)
-			error("não foi possível entrar num grupo multicast!");	
+			error("não foi possível entrar num grupo multicast!");
+
+		new_subbed_topic.received_news_count = 0;
+
+		pthread_mutex_lock(&subbed_topics_mutex);	
 
 		subbed_topics[subbed_topics_count] = new_subbed_topic;
 		subbed_topics_count++;
+
+		pthread_mutex_unlock(&subbed_topics_mutex);
+
+		// começar uma thread para receber as notícias deste tópico
+		pthread_t thread_id;
+		int topic_index = subbed_topics_count-1;
+		pthread_create(&thread_id, NULL, receive_news, (void *)&topic_index);
 
 		printf("Subscrição efetuada com sucesso!\n\n");
 
@@ -297,6 +314,36 @@ int send_message()
 		return 0;
 
 	return 1;
+}
+
+void *receive_news(void *arg)
+{
+	int topic_index = *(int *)arg;
+	char buffer[BUFFER_SIZE-256];
+	int nread;
+	char news_time[128];
+	time_t now;
+	socklen_t slen = sizeof(subbed_topics[topic_index].addr);
+
+	while(1)
+	{
+		if((nread = recvfrom(subbed_topics[topic_index].socket_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&subbed_topics[topic_index].addr, (socklen_t *)&slen)) == -1)
+			error("o servidor não respondeu, é possível que tenha sido desligado!");
+
+		now = time (0);
+		strftime (news_time, 128, "%Y-%m-%d %H:%M:%S.000", localtime(&now));
+		news_time[strlen(news_time)-7] = '\0';
+
+		char news[BUFFER_SIZE];
+		sprintf(news, "%s - %s", news_time, buffer);
+
+		pthread_mutex_lock(&subbed_topics_mutex);
+
+		strcpy(subbed_topics[topic_index].news[subbed_topics[topic_index].received_news_count], news);
+		subbed_topics[topic_index].received_news_count++;
+
+		pthread_mutex_unlock(&subbed_topics_mutex);
+	}
 }
 
  
