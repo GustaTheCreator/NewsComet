@@ -425,7 +425,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 			strcpy(title, title_part);
 			while (title_part != NULL)
 			{
-				title_part = strtok(NULL, "");
+				title_part = strtok(NULL, " ");
 				if (title_part != NULL)
 				{
 					strcat(title, " ");
@@ -478,19 +478,19 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				new_topic.addr.sin_addr.s_addr = inet_addr(new_topic.ip);
 				new_topic.addr.sin_port = htons(new_topic.port);
 
-				int disable = 0;
-				if (setsockopt(new_topic.socket_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &disable, sizeof(disable)) < 0)
-					error("na desativação do loop de multicast na socket!");
 				int enable = 255;
 				if (setsockopt(new_topic.socket_fd, IPPROTO_IP, IP_MULTICAST_TTL, &enable, sizeof(enable)) < 0) 
 					error("na ativação do multicast na socket!");
+
+				int disable = 0;
+				if (setsockopt(new_topic.socket_fd, IPPROTO_IP, IP_MULTICAST_LOOP, &disable, sizeof(disable)) < 0)
+					error("na desativação do loop de multicast na socket!");
 
 				shared->topics[shared->topics_count] = new_topic;
 
 				shared->topics_count = shared->topics_count + 1;
 
 				sem_post(user_sem);
-					error("no post do semáforo para a memória partilhada!");
 
 				sprintf(answer, "Tópico criado com sucesso!");
 			}
@@ -520,7 +520,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 					strcpy(text, text_part);
 					while (text_part != NULL)
 					{
-						text_part = strtok(NULL, "");
+						text_part = strtok(NULL, " ");
 						if (text_part != NULL)
 						{
 							strcat(text, " ");
@@ -535,7 +535,6 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				}
 			}
 			sem_post(user_sem);
-				error("no post do semáforo para a memória partilhada!");
 				
 			if (!found)
 				sprintf(answer, "Não existe nenhum tópico com este ID!");
