@@ -625,7 +625,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 		else
 		{
 			sem_wait(user_sem);
-			
+
 			FILE *file = fopen("users.csv", "r");
 			char line[BUFFER_SIZE];
 
@@ -716,6 +716,8 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			sem_wait(user_sem);
 
 			FILE *file = fopen("users.csv", "a");
+			if (file == NULL)
+				error("a abrir o ficheiro de utilizadores!");
 			fprintf(file,"%s,%s,%d\n", username, password, atoi(permissions));
 			
 			fclose(file);
@@ -736,6 +738,8 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			sem_wait(user_sem);
 
 			FILE *file = fopen("users.csv", "r");
+			if (file == NULL)
+				error("a abrir o ficheiro de utilizadores!");
 			char line[BUFFER_SIZE];
 			char line_copy[BUFFER_SIZE];
 			char line_list[BUFFER_SIZE]= "";
@@ -754,6 +758,8 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			fclose(file);
 
 			file = fopen("users.csv", "w");
+			if (file == NULL)
+				error("a abrir o ficheiro de utilizadores!");
 
 			fprintf(file, "%s", line_list); // reescreve o ficheiro sem a linha do utilizador que se pretende remover
 
@@ -772,6 +778,8 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 		sem_wait(user_sem);
 
 		FILE* file = fopen("users.csv", "r");
+		if (file == NULL)
+			error("a abrir o ficheiro de utilizadores!");
 		char line[BUFFER_SIZE-30];
 		char line_list[BUFFER_SIZE-30] = "";
 
