@@ -280,64 +280,59 @@ int tcp_login(char client_ip[], int client_fd)
 			line[strcspn(line, "\n")] = 0; // remove o \n do token final da linha
 
 			char *token = strtok(line, ","); //procura por correspondência na lista de utilizadores
-			while (token != NULL)
+			if (!strcmp(token,buffer))
 			{
-				if (!strcmp(token,buffer))
+				fflush(stdout);
+				write(client_fd, "Username encontrado!", 20);
+				token = strtok(NULL, ",");
+				while (1)
 				{
-					fflush(stdout);
-					write(client_fd, "Username encontrado!", 20);
-					token = strtok(NULL, ",");
-					while (1)
+					sem_post(user_sem);
+
+					nread = read(client_fd, buffer, BUFFER_SIZE); // lê a tentativa de password
+					buffer[nread] = '\0';
+
+					if (!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
 					{
-						sem_post(user_sem);
+						fclose(file);
+						write(client_fd, "Processo de login cancelado!", strlen("Processo de login cancelado!"));
+						return -1;
+					}
 
-						nread = read(client_fd, buffer, BUFFER_SIZE); // lê a tentativa de password
-						buffer[nread] = '\0';
+					sem_wait(user_sem);
 
-						if (!strcasecmp(buffer, "QUIT")) // devolve o pediddo de saída para quebrar ou não o loop da sessão
+					if (!strcmp(token,buffer))
+					{
+						token = strtok(NULL, ","); // verifica se o valor da permissão é válido
+						if ((strcmp(token,"0") && atoi(token) == 0) || atoi(token) > 2 || atoi(token) < 0)
 						{
-							fclose(file);
-							write(client_fd, "Processo de login cancelado!", strlen("Processo de login cancelado!"));
-							return -1;
-						}
-
-						sem_wait(user_sem);
-
-						if (!strcmp(token,buffer))
-						{
-							token = strtok(NULL, ","); // verifica se o valor da permissão é válido
-							if ((strcmp(token,"0") && atoi(token) == 0) || atoi(token) > 2 || atoi(token) < 0)
-							{
-								write(client_fd, "Não foi possível processar as permissões desta conta, a sua sessão será terminada, contacte um administrador!", 109); 
-								fclose(file);
-								sem_post(user_sem);
-								return -1;
-							}
-							char menu[BUFFER_SIZE];
-							sprintf(menu, 	"Login efetuado com sucesso!\n\n"
-											"Comandos disponíveis:\n"
-											"- QUIT						Termina esta sessão TCP\n"
-											"- READ_NEWS					Lê as notícias recebidas nos tópicos subscritos\n"
-											"- LIST_TOPICS					Lista todos os tópicos disponíveis\n"
-											"- SUBSCRIBE_TOPIC [topic_id]			Subscreve a um tópico");
-							if (atoi(token) > 0) // adiciona ao menu os comandos extras a que o jornaista/admin tem acesso
-								strcat(menu,"\n- CREATE_TOPIC [topic_id] [topic_title]		Cria um tópico\n"
-											"- SEND_NEWS [topic_id] [news_text]		Envia uma notícia para os subscritores de um tópico");
-							write(client_fd, menu, strlen(menu));
-							printf("Login TCP pelo IP %s efetuado com sucesso.\n\n", client_ip);
-							fflush(stdout);
-
+							write(client_fd, "Não foi possível processar as permissões desta conta, a sua sessão será terminada, contacte um administrador!", 109); 
 							fclose(file);
 							sem_post(user_sem);
-
-							return atoi(token); // devolve o nivel de permissões do cliente
+							return -1;
 						}
-						else
-							write(client_fd, "Password incorreta, tente novamente!", 36);
+						char menu[BUFFER_SIZE];
+						sprintf(menu, 	"Login efetuado com sucesso!\n\n"
+										"Comandos disponíveis:\n"
+										"- QUIT						Termina esta sessão TCP\n"
+										"- READ_NEWS					Lê as notícias recebidas nos tópicos subscritos\n"
+										"- LIST_TOPICS					Lista todos os tópicos disponíveis\n"
+										"- SUBSCRIBE_TOPIC [topic_id]			Subscreve a um tópico");
+						if (atoi(token) > 0) // adiciona ao menu os comandos extras a que o jornaista/admin tem acesso
+							strcat(menu,"\n- CREATE_TOPIC [topic_id] [topic_title]		Cria um tópico\n"
+										"- SEND_NEWS [topic_id] [news_text]		Envia uma notícia para os subscritores de um tópico");
+						write(client_fd, menu, strlen(menu));
+						printf("Login TCP pelo IP %s efetuado com sucesso.\n\n", client_ip);
+						fflush(stdout);
+
+						fclose(file);
+						sem_post(user_sem);
+
+						return atoi(token); // devolve o nivel de permissões do cliente
 					}
+					else
+						write(client_fd, "Password incorreta, tente novamente!", 36);
 				}
-				else
-					token = strtok(NULL, ",");
 			}
 		}
 		write(client_fd, "Este username não se encontra registado, tente novamente!", 59);
