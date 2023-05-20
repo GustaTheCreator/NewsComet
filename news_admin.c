@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <signal.h>
 
 #define BUFFER_SIZE 1024
 
@@ -16,6 +17,7 @@ void error(char *msg);
 void session_manager(int socket_fd, struct sockaddr *addr, socklen_t slen);
 int send_message(int socket_fd, struct sockaddr *addr, socklen_t slen);
 void receive_answer(int socket_fd, struct sockaddr *addr, socklen_t slen);
+void sigint_handler();
 
 int main(int argc, char *argv[]) 
 {
@@ -46,6 +48,13 @@ int main(int argc, char *argv[])
     if (connect(socket_fd, (struct sockaddr *) &addr, slen) < 0)
         error("não foi possível conectar!");
 
+    struct sigaction sa;
+    sa.sa_handler = sigint_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if (sigaction(SIGINT, &sa, NULL) == -1)
+        error("não foi possível definir o handler para SIGINT!");
+
     printf("Pronto para comunicar com o servidor!\n\n\n");
 
     printf("Comece por fazer login como administrador caso ainda não tenha sessão iniciada, deve utilizar o seguinte comando:\n"
@@ -55,6 +64,7 @@ int main(int argc, char *argv[])
 
 	receive_answer(socket_fd, (struct sockaddr *) &addr, slen); // recebe a mensagem de despedida
 
+    printf("\n");
     close(socket_fd);
 
     exit(0);
@@ -103,4 +113,10 @@ int send_message(int socket_fd, struct sockaddr *addr, socklen_t slen)
         return 1;
 	else
 		return 0;
+}
+
+void sigint_handler()
+{
+    printf("INTERRUPT\n\nA sua sessão irá manter-se aberta pois fechou o programa com CTRL+C, para terminar a sessão utilize o comando QUIT!\n\n");
+    exit(0);
 }
