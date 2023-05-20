@@ -272,8 +272,7 @@ int tcp_login(char client_ip[], int client_fd)
 			return -1;
 		}
 
-		if (sem_wait(user_sem) == -1)
-			error("no wait do semáforo para o ficheiro de utilizadores!");
+		sem_wait(user_sem);
 
 		while (fgets(line, BUFFER_SIZE, file))
 		{
@@ -290,8 +289,7 @@ int tcp_login(char client_ip[], int client_fd)
 					token = strtok(NULL, ",");
 					while (1)
 					{
-						if (sem_post(user_sem) == -1)
-							error("no post do semáforo para o ficheiro de utilizadores!");
+						sem_post(user_sem);
 
 						nread = read(client_fd, buffer, BUFFER_SIZE); // lê a tentativa de password
 						buffer[nread] = '\0';
@@ -303,8 +301,7 @@ int tcp_login(char client_ip[], int client_fd)
 							return -1;
 						}
 
-						if (sem_wait(user_sem) == -1)
-							error("no wait do semáforo para o ficheiro de utilizadores!");
+						sem_wait(user_sem);
 
 						if (!strcmp(token,buffer))
 						{
@@ -313,8 +310,7 @@ int tcp_login(char client_ip[], int client_fd)
 							{
 								write(client_fd, "Não foi possível processar as permissões desta conta, a sua sessão será terminada, contacte um administrador!", 109); 
 								fclose(file);
-								if (sem_post(user_sem) == -1)
-									error("no post do semáforo para o ficheiro de utilizadores!");
+								sem_post(user_sem);
 								return -1;
 							}
 							char menu[BUFFER_SIZE];
@@ -332,8 +328,7 @@ int tcp_login(char client_ip[], int client_fd)
 							fflush(stdout);
 
 							fclose(file);
-							if (sem_post(user_sem) == -1)
-								error("no post do semáforo para o ficheiro de utilizadores!");
+							sem_post(user_sem);
 
 							return atoi(token); // devolve o nivel de permissões do cliente
 						}
@@ -347,8 +342,7 @@ int tcp_login(char client_ip[], int client_fd)
 		}
 		write(client_fd, "Este username não se encontra registado, tente novamente!", 59);
 		rewind(file);
-		if (sem_post(user_sem) == -1)
-			error("no post do semáforo para o ficheiro de utilizadores!");
+		sem_post(user_sem);
 	}	
 }
 
@@ -403,8 +397,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 			sprintf(answer, "Argumento inválido!");
 		else
 		{
-			if (sem_wait(user_sem) == -1)
-				error("no wait do semáforo para a memória partilhada!");
+			sem_wait(user_sem);
 			int found = 0;
 			for (int i = 0; i < shared->topics_count; i++)
 			{
@@ -414,8 +407,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 					sprintf(answer, "%d#%s#%s#%d", shared->topics[i].id, shared->topics[i].title, shared->topics[i].ip, shared->topics[i].port);
 				}
 			}
-			if (sem_post(user_sem) == -1)
-				error("no post do semáforo para a memória partilhada!");
+			sem_post(user_sem);
 			if (!found)
 				sprintf(answer, "Não existe nenhum tópico com este ID!");
 		}
@@ -446,8 +438,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 				}
 			}
 
-			if (sem_wait(user_sem) == -1)
-				error("no wait do semáforo para a memória partilhada!");
+			sem_wait(user_sem);
 			int valid = 1;
 			for (int i = 0; i < shared->topics_count; i++)
 			{
@@ -462,13 +453,11 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 					valid = 0;
 				}	
 			}
-			if (sem_post(user_sem) == -1)
-				error("no post do semáforo para a memória partilhada!");
+			sem_post(user_sem);
 
 			if(valid)
 			{
-				if (sem_wait(user_sem) == -1)
-					error("no wait do semáforo para a memória partilhada!");
+				sem_wait(user_sem);
 
 				struct topic new_topic;
 				new_topic.id = atoi(id);
@@ -505,7 +494,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 
 				shared->topics_count = shared->topics_count + 1;
 
-				if (sem_post(user_sem) == -1)
+				sem_post(user_sem);
 					error("no post do semáforo para a memória partilhada!");
 
 				sprintf(answer, "Tópico criado com sucesso!");
@@ -523,8 +512,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 			sprintf(answer, "Não tem permissões para usar este comando!");
 		else
 		{
-			if (sem_wait(user_sem) == -1)
-				error("no wait do semáforo para a memória partilhada!");
+			sem_wait(user_sem);
 			int found = 0;
 			for (int i = 0; i < shared->topics_count; i++)
 			{
@@ -551,7 +539,7 @@ void tcp_process_answer(char *buffer, int client_perms, int client_fd)
 						sprintf(answer, "Notícia enviada com sucesso!");
 				}
 			}
-			if (sem_post(user_sem) == -1)
+			sem_post(user_sem);
 				error("no post do semáforo para a memória partilhada!");
 				
 			if (!found)
@@ -636,9 +624,8 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 			sprintf(answer, "Argumentos inválidos!");
 		else
 		{
-			if (sem_wait(user_sem) == -1)
-				error("no wait do semáforo para o ficheiro de utilizadores!");
-
+			sem_wait(user_sem);
+			
 			FILE *file = fopen("users.csv", "r");
 			char line[BUFFER_SIZE];
 
@@ -693,8 +680,7 @@ int udp_login(char client_ip[], char logged_admins[][INET_ADDRSTRLEN], char buff
 
 			fclose(file);
 
-			if (sem_post(user_sem) == -1)
-        		error("no post do semáforo para o ficheiro de utilizadores!");
+			sem_post(user_sem);
 		}
 	}
 	else if(!strcasecmp(token, "QUIT"))
@@ -727,16 +713,14 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			sprintf(answer, "O nível de permissões deve ser um número entre 0 e 2!");
 		else
 		{
-			if (sem_wait(user_sem) == -1)
-				error("no wait do semáforo para o ficheiro de utilizadores!");
+			sem_wait(user_sem);
 
 			FILE *file = fopen("users.csv", "a");
 			fprintf(file,"%s,%s,%d\n", username, password, atoi(permissions));
 			
 			fclose(file);
 
-			if (sem_post(user_sem) == -1)
-        		error("no post do semáforo para o ficheiro de utilizadores!");
+			sem_post(user_sem);
 
 			sprintf(answer, "Utilizador adicionado com sucesso!");
 		}
@@ -749,8 +733,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 			sprintf(answer, "\nArgumento inválido!\n\n");
 		else
 		{
-			if (sem_wait(user_sem) == -1)
-				error("no wait do semáforo para o ficheiro de utilizadores!");
+			sem_wait(user_sem);
 
 			FILE *file = fopen("users.csv", "r");
 			char line[BUFFER_SIZE];
@@ -776,8 +759,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 
 			fclose(file);
 
-			if (sem_post(user_sem) == -1)
-        		error("no post do semáforo para o ficheiro de utilizadores!");
+			sem_post(user_sem);
 
 			if (found_user)
 				sprintf(answer, "Utilizador removido com sucesso!");
@@ -787,8 +769,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 	}
 	else if (!strcasecmp(token,"LIST_USERS")) // listar utilizadores
 	{
-		if (sem_wait(user_sem) == -1)
-        	error("no wait do semáforo para o ficheiro de utilizadores!");
+		sem_wait(user_sem);
 
 		FILE* file = fopen("users.csv", "r");
 		char line[BUFFER_SIZE-30];
@@ -801,8 +782,7 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 
 		fclose(file);
 
-		if (sem_post(user_sem) == -1)
-        	error("no post do semáforo para o ficheiro de utilizadores!");
+		sem_post(user_sem);
 
 		sprintf(answer, "Lista de utilizadores:\n\n%s", line_list);
 	}
