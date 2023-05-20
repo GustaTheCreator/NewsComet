@@ -181,7 +181,7 @@ void receive_answer()
 int send_message()
 {
 	char input[BUFFER_SIZE];
-
+	
 	fgets(input, BUFFER_SIZE, stdin);
     if(input[0] == '\n')
 		strcpy(input, "invalid\n");
@@ -197,7 +197,7 @@ int send_message()
 	if(!strcasecmp(token,"READ_NEWS"))
 	{
 		token = strtok(NULL, " ");
-		if (token == NULL) // chamar o comando sem argumentos mostra os tópicos a que está subscrito e pode ler notícias
+		if (token == NULL) // chamar o comando sem argumentos mostra os tópicos a que está subscrito de onde pode ler notícias
 		{
 			pthread_mutex_lock(&subbed_topics_mutex);
 			if(subbed_topics_count == 0)
