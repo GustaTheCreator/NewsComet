@@ -779,14 +779,16 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 
 		while (fgets(line, BUFFER_SIZE, file))
 		{
-			strcat(line_list, line);
+			token = strtok(line, ",");
+			strcat(line_list, "\n");
+			strcat(line_list, token);
 		}
 
 		fclose(file);
 
 		sem_post(user_sem);
 
-		sprintf(answer, "Lista de utilizadores:\n\n%s", line_list);
+		sprintf(answer, "Lista de utilizadores:\n%s", line_list);
 	}
 	else if (!strcasecmp(token,"QUIT")) // fechar sessão
 	{
