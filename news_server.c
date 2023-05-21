@@ -709,16 +709,41 @@ void udp_process_answer(char client_ip[], char logged_admins[][INET_ADDRSTRLEN],
 		{
 			sem_wait(user_sem);
 
-			FILE *file = fopen("users.csv", "a");
+			FILE *file = fopen("users.csv", "r");
 			if (file == NULL)
 				error("a abrir o ficheiro de utilizadores!");
-			fprintf(file,"%s,%s,%d\n", username, password, atoi(permissions));
-			
-			fclose(file);
 
+			// verificar se o username já existe
+			int not_duplicate = 1;
+			char line[BUFFER_SIZE];
+			while (fgets(line, BUFFER_SIZE, file) != NULL)
+			{
+				line[strcspn(line, "\n")] = 0; // remove o \n do token final da linha
+
+				token = strtok(line, ",");
+				if (!strcmp(token, username))
+				{
+					sprintf(answer, "O username que inseriu já se encontra registado!");
+					not_duplicate = 0;
+					break;
+				}
+			}
+			fclose(file);
 			sem_post(user_sem);
 
-			sprintf(answer, "Utilizador adicionado com sucesso!");
+			if(not_duplicate)
+			{
+				file = fopen("users.csv", "a");
+				if (file == NULL)
+					error("a abrir o ficheiro de utilizadores!");
+				fprintf(file,"%s,%s,%d\n", username, password, atoi(permissions));
+				
+				fclose(file);
+
+				sem_post(user_sem);
+
+				sprintf(answer, "Utilizador adicionado com sucesso!");
+			}
 		}
 	}
 	else if (!strcasecmp(token,"DEL_USER")) // apagar utilizador
