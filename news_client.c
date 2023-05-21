@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 
 void error(char *msg)
 {
-	printf("Erro, %s\n\n", msg);
+	printf("Erro, %s\n\n\n", msg);
 	exit(-1);
 }
 
