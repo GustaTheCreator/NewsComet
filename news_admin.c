@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
 
 void error(char *input)
 {
-	printf("Erro, %s\n\n", input);
+	printf("Erro, %s\n\n\n", input);
 	exit(-1);
 }
 
