@@ -144,7 +144,7 @@ void session_manager()
 		if(procedure == 1)
 		{
 			if(send(server_fd, NULL, 0, MSG_NOSIGNAL) != -1) // verificar se a socket está aberta / a receber mensagens
-				receive_answer(server_fd);
+				receive_answer();
 			else
 				error("o servidor não respondeu, é possível que tenha sido desligado ou esta sessão tenha expirado!");
 		}
