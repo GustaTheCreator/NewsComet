@@ -37,10 +37,12 @@
     make
     ```
   
-  * The `.o` files will be found in the `bin` folder and the `.exe` in the root, you can also use the `Makefile` to remove them
-    ```
-    make clean
-    ```
+    * The `.o` files will be found in the `bin` folder and the `.exe` in the root, you can also use the `Makefile` to remove them
+      <br>
+      
+      ```
+      make clean
+      ```
  
 * (Optional) Setup the GNS3 network
   ```
