@@ -43,11 +43,6 @@
       ```
       make clean
       ```
- 
-* (Optional) Setup the GNS3 network
-  ```
-    To demonstrate how NewsComet works, a demo GNS3 project file is included in this repository, which uses the Cisco 2691 router image. Additionally, a Dockerfile is provided     to build the necessary containers used for running the program inside the GNS3 simulation.
-  ```
   
 <h2>
 🚩 Usage
@@ -65,7 +60,7 @@
     ./news_client.exe <ip> 9000
     ```
 
-  * Start one or more `news_admin.exe` to access admin actions
+  * Start one or more `news_admin.exe` to interact with the system as an administrator
     ```
     ./news_admin.exe <ip> 9876
     ```
