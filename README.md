@@ -65,7 +65,7 @@
     ./news_client.exe <ip> 9000
     ```
 
-  * Start one or more `news_admin.exe` to access and modify admin settings
+  * Start one or more `news_admin.exe` to access admin actions
     ```
     ./news_admin.exe <ip> 9876
     ```
