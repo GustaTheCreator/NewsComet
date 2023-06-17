@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  NewsComet (NC) is an information hub simulator that allows journalists to submit pieces of news that are then distributed to users who have subscribed to their respective     topics. Network protocols such as TCP and UDP are explored.
+  NewsComet (NC) is an information hub simulator for UNIX-like systems that allows journalists to submit pieces of news that are then distributed to users who have subscribed to their respective     topics. Network protocols such as TCP and UDP are explored.
 </p>
 <p align="center">
   <i>Part of the final assignment for my Networks and Communications course in university.</i>
